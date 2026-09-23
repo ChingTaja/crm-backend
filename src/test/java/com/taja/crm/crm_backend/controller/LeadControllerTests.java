@@ -45,7 +45,7 @@ class LeadControllerTests {
     @Test
     void invalidStatusIsRejectedBeforeCallingService() throws Exception {
         mvc.perform(post("/api/leads").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"status\":\"invalid\"}"))
+                        .content("{\"status\":{\"key\":\"invalid\",\"value\":\"無效\"}}"))
                 .andExpect(status().isBadRequest());
         verifyNoInteractions(leadService);
     }
@@ -71,7 +71,7 @@ class LeadControllerTests {
 
         mvc.perform(post("/api/leads").contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"name":"王小明", "status":"qualified",
+                                {"name":"王小明", "status":{"key":"qualified","value":"已合格"},
                                  "qualification":{"decision":"approved",
                                   "reviewedAt":"2026-09-22T10:00:00+08:00", "customerId":"customer-1"}}
                                 """))
