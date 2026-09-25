@@ -29,7 +29,7 @@ class LeadControllerTests {
         Lead created = new Lead();
         created.setId("lead-1");
         created.setName("王小明");
-        when(leadService.create(any(Lead.class))).thenReturn(created);
+        when(leadService.createLeads(any(Lead.class))).thenReturn(created);
 
         mvc.perform(post("/api/leads").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"王小明\"}"))
@@ -38,7 +38,7 @@ class LeadControllerTests {
                 .andExpect(jsonPath("$.status.key").value("pending"))
                 .andExpect(jsonPath("$.status.value").value("待聯繫"))
                 .andExpect(jsonPath("$.qualification").doesNotExist());
-        verify(leadService).create(argThat(lead -> lead.getId() == null
+        verify(leadService).createLeads(argThat(lead -> lead.getId() == null
                 && "待聯繫".equals(lead.getStatus()) && "王小明".equals(lead.getName())));
     }
 
@@ -52,7 +52,7 @@ class LeadControllerTests {
 
     @Test
     void missingLeadReturnsNotFound() throws Exception {
-        when(leadService.findById("missing"))
+        when(leadService.findByIdLead("missing"))
                 .thenThrow(new EntityNotFoundException("找不到 Lead：missing"));
 
         mvc.perform(get("/api/leads/missing"))
@@ -62,7 +62,7 @@ class LeadControllerTests {
 
     @Test
     void createMapsStatusKeyAndQualification() throws Exception {
-        when(leadService.create(any(Lead.class)))
+        when(leadService.createLeads(any(Lead.class)))
                 .thenAnswer(invocation -> {
                     Lead lead = invocation.getArgument(0);
                     lead.setId("lead-2");
@@ -80,7 +80,7 @@ class LeadControllerTests {
                 .andExpect(jsonPath("$.status.value").value("已合格"))
                 .andExpect(jsonPath("$.qualification.decision").value("approved"))
                 .andExpect(jsonPath("$.qualification.customerId").value("customer-1"));
-        verify(leadService).create(argThat(lead -> "已合格".equals(lead.getStatus())));
+        verify(leadService).createLeads(argThat(lead -> "已合格".equals(lead.getStatus())));
     }
 
     @Test
@@ -96,6 +96,6 @@ class LeadControllerTests {
         mvc.perform(delete("/api/leads/lead-1"))
                 .andExpect(status().isNoContent())
                 .andExpect(content().string(""));
-        verify(leadService).delete("lead-1");
+        verify(leadService).deleteLeads("lead-1");
     }
 }

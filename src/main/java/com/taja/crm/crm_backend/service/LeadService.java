@@ -19,17 +19,17 @@ public class LeadService {
 
     private final LeadRepository leadRepository;
 
-    public List<Lead> findAll() {
+    public List<Lead> findAllLeads() {
         return leadRepository.findAll();
     }
 
-    public Lead findById(String id) {
+    public Lead findByIdLead(String id) {
         return leadRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("找不到 Lead：" + id));
     }
 
     @Transactional
-    public Lead create(@NotNull @Valid Lead lead) {
+    public Lead createLeads(@NotNull @Valid Lead lead) {
         if (lead.getId() != null) {
             throw new IllegalArgumentException("新增 Lead 時不可指定 id");
         }
@@ -38,8 +38,8 @@ public class LeadService {
 
     /** 完整更新指定 Lead；省略 qualification 時會清除原本的審核資料。 */
     @Transactional
-    public Lead update(String id, @NotNull @Valid Lead lead) {
-        Lead existing = findById(id);
+    public Lead updateLeads(String id, @NotNull @Valid Lead lead) {
+        Lead existing = findByIdLead(id);
         existing.setName(lead.getName());
         existing.setCompany(lead.getCompany());
         existing.setEmail(lead.getEmail());
@@ -52,8 +52,8 @@ public class LeadService {
     }
 
     @Transactional
-    public void delete(String id) {
-        Lead lead = findById(id);
+    public void deleteLeads(String id) {
+        Lead lead = findByIdLead(id);
         leadRepository.delete(lead);
     }
 }

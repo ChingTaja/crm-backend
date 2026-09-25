@@ -19,17 +19,17 @@ public class CustomerService {
 
     private final CustomerRepository customerRepository;
 
-    public List<Customer> findAll() {
+    public List<Customer> findAllCustomers() {
         return customerRepository.findAll();
     }
 
-    public Customer findById(String id) {
+    public Customer findByIdCustomer(String id) {
         return customerRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("找不到 Customer：" + id));
     }
 
     @Transactional
-    public Customer create(@NotNull @Valid Customer customer) {
+    public Customer createCustomers(@NotNull @Valid Customer customer) {
         if (customer.getId() != null) {
             throw new IllegalArgumentException("新增 Customer 時不可指定 id");
         }
@@ -38,8 +38,8 @@ public class CustomerService {
 
     /** 完整更新指定 Customer，未提供的欄位會清空。 */
     @Transactional
-    public Customer update(String id, @NotNull @Valid Customer customer) {
-        Customer existing = findById(id);
+    public Customer updateCustomers(String id, @NotNull @Valid Customer customer) {
+        Customer existing = findByIdCustomer(id);
         existing.setName(customer.getName());
         existing.setCompany(customer.getCompany());
         existing.setEmail(customer.getEmail());
@@ -49,8 +49,8 @@ public class CustomerService {
     }
 
     @Transactional
-    public void delete(String id) {
-        Customer customer = findById(id);
+    public void deleteCustomers(String id) {
+        Customer customer = findByIdCustomer(id);
         customerRepository.delete(customer);
     }
 }

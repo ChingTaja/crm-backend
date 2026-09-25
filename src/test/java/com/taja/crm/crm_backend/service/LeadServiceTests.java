@@ -28,7 +28,7 @@ class LeadServiceTests {
         Lead lead = new Lead();
         lead.setId("existing-id");
 
-        assertThrows(IllegalArgumentException.class, () -> leadService.create(lead));
+        assertThrows(IllegalArgumentException.class, () -> leadService.createLeads(lead));
         verifyNoInteractions(leadRepository);
     }
 
@@ -43,7 +43,7 @@ class LeadServiceTests {
         when(leadRepository.findById("target-id")).thenReturn(Optional.of(existing));
         when(leadRepository.save(existing)).thenReturn(existing);
 
-        Lead result = leadService.update("target-id", replacement);
+        Lead result = leadService.updateLeads("target-id", replacement);
 
         assertEquals("target-id", result.getId());
         assertEquals("新名稱", result.getName());
@@ -55,8 +55,8 @@ class LeadServiceTests {
         when(leadRepository.findById("missing")).thenReturn(Optional.empty());
 
         assertThrows(EntityNotFoundException.class,
-                () -> leadService.update("missing", new Lead()));
-        assertThrows(EntityNotFoundException.class, () -> leadService.delete("missing"));
+                () -> leadService.updateLeads("missing", new Lead()));
+        assertThrows(EntityNotFoundException.class, () -> leadService.deleteLeads("missing"));
         verify(leadRepository, never()).save(any(Lead.class));
         verify(leadRepository, never()).delete(any(Lead.class));
     }

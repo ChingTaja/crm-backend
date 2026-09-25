@@ -29,30 +29,30 @@ public class LeadController {
     private final LeadService leadService;
 
     @GetMapping
-    public List<Lead> findAll() {
-        return leadService.findAll();
+    public List<Lead> findAllLeads() {
+        return leadService.findAllLeads();
     }
 
     @GetMapping("/{id}")
-    public Lead findById(@PathVariable String id) {
-        return leadService.findById(id);
+    public Lead findByIdLead(@PathVariable String id) {
+        return leadService.findByIdLead(id);
     }
 
     @PostMapping
-    public ResponseEntity<CreateLeadResponse> create(@Valid @RequestBody CreateLeadRequest request) {
-        Lead created = leadService.create(request.toEntity());
+    public ResponseEntity<CreateLeadResponse> createLeads(@Valid @RequestBody CreateLeadRequest request) {
+        Lead created = leadService.createLeads(request.toEntity());
         return ResponseEntity.status(HttpStatus.CREATED).body(CreateLeadResponse.fromEntity(created));
     }
 
     /** 完整更新；省略 qualification 時會清除原本的審核資料。 */
     @PutMapping("/{id}")
-    public Lead update(@PathVariable String id, @Valid @RequestBody Lead lead) {
-        return leadService.update(id, lead);
+    public Lead updateLeads(@PathVariable String id, @Valid @RequestBody Lead lead) {
+        return leadService.updateLeads(id, lead);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable String id) {
-        leadService.delete(id);
+    public ResponseEntity<Void> deleteLeads(@PathVariable String id) {
+        leadService.deleteLeads(id);
         return ResponseEntity.noContent().build();
     }
 

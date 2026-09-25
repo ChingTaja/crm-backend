@@ -1,10 +1,10 @@
 package com.taja.crm.crm_backend.controller;
 
-import com.taja.crm.crm_backend.dto.customer.CreateCustomerRequest;
-import com.taja.crm.crm_backend.dto.customer.CustomerResponse;
-import com.taja.crm.crm_backend.dto.customer.UpdateCustomerRequest;
-import com.taja.crm.crm_backend.model.Customer;
-import com.taja.crm.crm_backend.service.CustomerService;
+import com.taja.crm.crm_backend.dto.contact.CreateContactRequest;
+import com.taja.crm.crm_backend.dto.contact.ContactResponse;
+import com.taja.crm.crm_backend.dto.contact.UpdateContactRequest;
+import com.taja.crm.crm_backend.model.Contact;
+import com.taja.crm.crm_backend.service.ContactService;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -23,37 +23,37 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/customers")
+@RequestMapping("/api/contacts")
 @RequiredArgsConstructor
-public class CustomerController {
+public class ContactController {
 
-    private final CustomerService customerService;
+    private final ContactService contactService;
 
     @GetMapping
-    public List<CustomerResponse> findAllCustomers() {
-        return customerService.findAllCustomers().stream().map(CustomerResponse::fromEntity).toList();
+    public List<ContactResponse> findAllContacts() {
+        return contactService.findAllContacts().stream().map(ContactResponse::fromEntity).toList();
     }
 
     @GetMapping("/{id}")
-    public CustomerResponse findByIdCustomer(@PathVariable String id) {
-        return CustomerResponse.fromEntity(customerService.findByIdCustomer(id));
+    public ContactResponse findByIdContact(@PathVariable String id) {
+        return ContactResponse.fromEntity(contactService.findByIdContact(id));
     }
 
     @PostMapping
-    public ResponseEntity<CustomerResponse> createCustomers(@Valid @RequestBody CreateCustomerRequest request) {
-        Customer created = customerService.createCustomers(request.toEntity());
-        return ResponseEntity.status(HttpStatus.CREATED).body(CustomerResponse.fromEntity(created));
+    public ResponseEntity<ContactResponse> createContacts(@Valid @RequestBody CreateContactRequest request) {
+        Contact created = contactService.createContacts(request.toEntity());
+        return ResponseEntity.status(HttpStatus.CREATED).body(ContactResponse.fromEntity(created));
     }
 
     /** 完整更新；未提供的欄位會清空。 */
     @PutMapping("/{id}")
-    public CustomerResponse updateCustomers(@PathVariable String id, @Valid @RequestBody UpdateCustomerRequest request) {
-        return CustomerResponse.fromEntity(customerService.updateCustomers(id, request.toEntity()));
+    public ContactResponse updateContacts(@PathVariable String id, @Valid @RequestBody UpdateContactRequest request) {
+        return ContactResponse.fromEntity(contactService.updateContacts(id, request.toEntity()));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteCustomers(@PathVariable String id) {
-        customerService.deleteCustomers(id);
+    public ResponseEntity<Void> deleteContacts(@PathVariable String id) {
+        contactService.deleteContacts(id);
         return ResponseEntity.noContent().build();
     }
 
