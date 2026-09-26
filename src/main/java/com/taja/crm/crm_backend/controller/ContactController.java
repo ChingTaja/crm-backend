@@ -7,7 +7,9 @@ import com.taja.crm.crm_backend.model.Contact;
 import com.taja.crm.crm_backend.service.ContactService;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
-import java.util.List;
+import com.taja.crm.crm_backend.dto.PageResponse;
+import com.taja.crm.crm_backend.dto.Pagination;
+import org.springframework.web.bind.annotation.RequestParam;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -30,8 +32,10 @@ public class ContactController {
     private final ContactService contactService;
 
     @GetMapping
-    public List<ContactResponse> findAllContacts() {
-        return contactService.findAllContacts().stream().map(ContactResponse::fromEntity).toList();
+    public PageResponse<ContactResponse> findAllContacts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return PageResponse.fromPage(contactService.findAllContacts(Pagination.of(page, size)).map(ContactResponse::fromEntity));
     }
 
     @GetMapping("/{id}")

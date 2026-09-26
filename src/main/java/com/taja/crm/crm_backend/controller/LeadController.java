@@ -6,7 +6,9 @@ import com.taja.crm.crm_backend.model.Lead;
 import com.taja.crm.crm_backend.service.LeadService;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
-import java.util.List;
+import com.taja.crm.crm_backend.dto.PageResponse;
+import com.taja.crm.crm_backend.dto.Pagination;
+import org.springframework.web.bind.annotation.RequestParam;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -29,8 +31,10 @@ public class LeadController {
     private final LeadService leadService;
 
     @GetMapping
-    public List<Lead> findAllLeads() {
-        return leadService.findAllLeads();
+    public PageResponse<Lead> findAllLeads(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return PageResponse.fromPage(leadService.findAllLeads(Pagination.of(page, size)));
     }
 
     @GetMapping("/{id}")

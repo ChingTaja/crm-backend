@@ -5,7 +5,8 @@ import com.taja.crm.crm_backend.repo.LeadRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,8 +20,8 @@ public class LeadService {
 
     private final LeadRepository leadRepository;
 
-    public List<Lead> findAllLeads() {
-        return leadRepository.findAll();
+    public Page<Lead> findAllLeads(Pageable pageable) {
+        return leadRepository.findAll(pageable);
     }
 
     public Lead findByIdLead(String id) {

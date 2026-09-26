@@ -7,7 +7,9 @@ import com.taja.crm.crm_backend.model.Customer;
 import com.taja.crm.crm_backend.service.CustomerService;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
-import java.util.List;
+import com.taja.crm.crm_backend.dto.PageResponse;
+import com.taja.crm.crm_backend.dto.Pagination;
+import org.springframework.web.bind.annotation.RequestParam;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -30,8 +32,10 @@ public class CustomerController {
     private final CustomerService customerService;
 
     @GetMapping
-    public List<CustomerResponse> findAllCustomers() {
-        return customerService.findAllCustomers().stream().map(CustomerResponse::fromEntity).toList();
+    public PageResponse<CustomerResponse> findAllCustomers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return PageResponse.fromPage(customerService.findAllCustomers(Pagination.of(page, size)).map(CustomerResponse::fromEntity));
     }
 
     @GetMapping("/{id}")

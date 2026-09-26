@@ -5,7 +5,8 @@ import com.taja.crm.crm_backend.repo.ContactRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,8 +20,8 @@ public class ContactService {
 
     private final ContactRepository contactRepository;
 
-    public List<Contact> findAllContacts() {
-        return contactRepository.findAll();
+    public Page<Contact> findAllContacts(Pageable pageable) {
+        return contactRepository.findAll(pageable);
     }
 
     public Contact findByIdContact(String id) {
