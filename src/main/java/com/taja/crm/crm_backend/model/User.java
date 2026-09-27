@@ -22,6 +22,14 @@ public class User {
     private String email;
     @JsonIgnore @Column(name = "password_hash", nullable = false, length = 60)
     private String passwordHash;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "role_id", foreignKey = @ForeignKey(name = "fk_users_role"))
+    private Role role;
+
+    @JsonIgnore
+    @Column(nullable = false, columnDefinition = "bigint default 0")
+    private long tokenVersion;
+
     /** 最近三次舊密碼的 BCrypt hash，由舊至新。 */
     @JsonIgnore
     @ElementCollection

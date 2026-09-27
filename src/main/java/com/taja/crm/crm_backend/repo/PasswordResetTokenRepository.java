@@ -5,6 +5,8 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.*;
 
 public interface PasswordResetTokenRepository extends JpaRepository<PasswordResetToken, String> {
+    void deleteByUserId(String userId);
+
     @Query("select t.user.id from PasswordResetToken t where t.tokenHash = :hash")
     Optional<String> findUserIdByHash(String hash);
     Optional<PasswordResetToken> findByTokenHash(String tokenHash);

@@ -3,10 +3,9 @@ package com.taja.crm.crm_backend.controller;
 import com.taja.crm.crm_backend.dto.auth.*;
 import com.taja.crm.crm_backend.service.PasswordResetService;
 import com.taja.crm.crm_backend.service.UserAuthService;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
+import java.security.Principal;
+import com.taja.crm.crm_backend.service.JwtService;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.web.server.ResponseStatusException;
 import jakarta.validation.Valid;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -20,40 +19,29 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
     private final PasswordResetService passwordResetService;
     private final UserAuthService userAuthService;
+    private final JwtService jwtService;
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
-    public UserResponse register(@Valid @RequestBody RegisterRequest request) {
-        return userAuthService.register(request);
+    public UserResponse register(@Valid @RequestBody RegisterRequest request, Principal principal) {
+        String actorId = principal == null ? null : principal.getName();
+        return userAuthService.register(request, actorId);
     }
 
     @PostMapping("/login")
-    public UserResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
-        UserResponse user = userAuthService.login(request);
-        HttpSession oldSession = httpRequest.getSession(false);
-        if (oldSession != null) {
-            oldSession.invalidate();
-        }
-        httpRequest.getSession(true).setAttribute("userId", user.id());
-        return user;
+    public LoginResponse login(@Valid @RequestBody LoginRequest request) {
+        return jwtService.issue(userAuthService.login(request));
     }
 
     @GetMapping("/me")
-    public UserResponse currentUser(HttpServletRequest request) {
-        HttpSession session = request.getSession(false);
-        if (session == null || !(session.getAttribute("userId") instanceof String userId)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "尚未登入");
-        }
-        return userAuthService.findCurrentUser(userId);
+    public UserResponse currentUser(Principal principal) {
+        return userAuthService.findCurrentUser(principal.getName());
     }
 
     @PostMapping("/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void logout(HttpServletRequest request) {
-        HttpSession session = request.getSession(false);
-        if (session != null) {
-            session.invalidate();
-        }
+    public void logout(Principal principal) {
+        jwtService.logout(principal.getName());
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

@@ -65,6 +65,7 @@ public class PasswordResetService {
             user.getPasswordHistory().removeFirst();
         }
         user.setPasswordHash(encoder.encode(newPassword));
+        user.setTokenVersion(user.getTokenVersion() + 1);
         tokens.invalidateForUser(userId);
     }
 
