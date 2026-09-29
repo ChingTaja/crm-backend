@@ -9,7 +9,6 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum LeadStatus {
     PENDING("pending", "待聯繫"),
-    CONTACTING("contacting", "聯繫中"),
     QUALIFIED("qualified", "已合格"),
     UNQUALIFIED("unqualified", "不合格");
 

@@ -55,8 +55,9 @@ public class UserAuthService {
         return UserResponse.fromEntity(users.saveAndFlush(user));
     }
 
+    @Transactional
     public UserResponse login(LoginRequest request) {
-        var user = users.findByUsername(request.username().strip());
+        var user = users.findForLoginByUsername(request.username().strip());
         boolean matches = request.password().getBytes(StandardCharsets.UTF_8).length <= 72
                 && encoder.matches(request.password(), user.map(User::getPasswordHash).orElse(dummyHash));
         if (user.isEmpty() || !matches) {

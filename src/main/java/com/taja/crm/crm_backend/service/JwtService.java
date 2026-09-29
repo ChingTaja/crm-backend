@@ -15,15 +15,23 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class JwtService {
     private final JwtEncoder encoder;
+    private final UserAuthService auth;
     private final UserRepository users;
     private final Clock clock;
     private final String issuer;
     private final Duration ttl;
 
-    public JwtService(JwtEncoder encoder, UserRepository users, Clock clock,
+    public JwtService(JwtEncoder encoder, UserRepository users, Clock clock, UserAuthService auth,
             @Value("${app.jwt.issuer}") String issuer, @Value("${app.jwt.ttl}") Duration ttl) {
         if (ttl.isNegative() || ttl.isZero()) throw new IllegalArgumentException("JWT TTL 必須大於 0");
+        this.auth = auth;
         this.encoder = encoder; this.users = users; this.clock = clock; this.issuer = issuer; this.ttl = ttl;
+    }
+
+    @Transactional
+    public LoginResponse login(LoginRequest request) {
+        // 密碼驗證與 JWT 簽發共用鎖及交易，避免密碼重設並行時簽發新的有效 token。
+        return issue(auth.login(request));
     }
 
     @Transactional(readOnly = true)

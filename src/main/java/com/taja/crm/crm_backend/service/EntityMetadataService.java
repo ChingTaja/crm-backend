@@ -13,7 +13,23 @@ public class EntityMetadataService {
 
     public List<FieldMetadata> findFieldsByEntityName(String entityName) {
         return switch (entityName) {
+            case "users" -> List.of(
+                    field("username", "帳號", "string", "username"),
+                    field("email", "電子郵件", "email", "email"),
+                    lookup("role_id", "角色", "roleId", "roles"));
             case "leads" -> leadFields();
+            case "opportunities" -> List.of(
+                    new FieldMetadata("id", "商機 ID", "string", "id", true, null, null, null),
+                    field("name", "商機名稱", "string", "name"),
+                    lookup("customer_id", "所屬客戶", "customerId", "customers"),
+                    lookup("lead_id", "來源 Lead", "leadId", "leads"),
+                    field("amount", "預估金額（TWD）", "number", "amount"),
+                    field("expected_close_date", "預計成交日", "date", "expectedCloseDate"),
+                    field("owner", "負責人", "string", "owner"),
+                    new FieldMetadata("stage", "商機階段", "optionSet", "stage", false,
+                            java.util.stream.Stream.of("需求確認", "提案報價", "協商中", "已成交", "已失單")
+                                    .map(value -> new com.taja.crm.crm_backend.model.Option(value, value)).toList(),
+                            null, null));
             case "customers" -> List.copyOf(commonFields("客戶名稱"));
             case "contacts" -> {
                 List<FieldMetadata> fields = commonFields("聯絡人姓名");
@@ -46,8 +62,7 @@ public class EntityMetadataService {
         fields.add(field("qualification_note", "審核備註", "text", "qualification.note"));
         fields.add(lookup("qualification_customer_id", "轉換後客戶", "qualification.customerId", "customers"));
         fields.add(lookup("qualification_contact_id", "轉換後聯絡人", "qualification.contactId", "contacts"));
-        // Opportunity 尚未有 entity 或查詢 API，先保留字串欄位。
-        fields.add(field("qualification_opportunity_id", "轉換後商機 ID", "string", "qualification.opportunityId"));
+        fields.add(lookup("qualification_opportunity_id", "轉換後商機", "qualification.opportunityId", "opportunities"));
         return List.copyOf(fields);
     }
 

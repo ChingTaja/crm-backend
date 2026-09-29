@@ -37,10 +37,15 @@ public class LeadService {
         return leadRepository.save(lead);
     }
 
-    /** 完整更新指定 Lead；省略 qualification 時會清除原本的審核資料。 */
+    /** 完整更新尚未審核的 Lead；已完成審核的資料不可覆寫。 */
     @Transactional
     public Lead updateLeads(String id, @NotNull @Valid Lead lead) {
-        Lead existing = findByIdLead(id);
+        Lead existing = leadRepository.findForUpdateById(id)
+                .orElseThrow(() -> new EntityNotFoundException("找不到 Lead：" + id));
+        if (existing.getQualification() != null) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.CONFLICT, "已完成審核的 Lead 不可透過一般更新覆寫");
+        }
         existing.setName(lead.getName());
         existing.setCompany(lead.getCompany());
         existing.setEmail(lead.getEmail());

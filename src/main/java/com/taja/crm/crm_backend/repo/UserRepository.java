@@ -9,6 +9,9 @@ public interface UserRepository extends JpaRepository<User, String> {
     boolean existsByUsernameAndIdNot(String username, String id);
     boolean existsByEmailIgnoreCaseAndIdNot(String email, String id);
     Optional<User> findByUsername(String username);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u from User u where u.username = :username")
+    Optional<User> findForLoginByUsername(String username);
     boolean existsByUsername(String username);
     boolean existsByEmailIgnoreCase(String email);
     @Lock(LockModeType.PESSIMISTIC_WRITE)

@@ -1,9 +1,10 @@
 package com.taja.crm.crm_backend.controller;
 
-import com.taja.crm.crm_backend.dto.lead.CreateLeadRequest;
-import com.taja.crm.crm_backend.dto.lead.CreateLeadResponse;
-import com.taja.crm.crm_backend.model.Lead;
-import com.taja.crm.crm_backend.service.LeadService;
+import com.taja.crm.crm_backend.dto.opportunity.CreateOpportunityRequest;
+import com.taja.crm.crm_backend.dto.opportunity.OpportunityResponse;
+import com.taja.crm.crm_backend.dto.opportunity.UpdateOpportunityRequest;
+import com.taja.crm.crm_backend.model.Opportunity;
+import com.taja.crm.crm_backend.service.OpportunityService;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import com.taja.crm.crm_backend.dto.PageResponse;
@@ -24,39 +25,39 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/leads")
+@RequestMapping("/api/opportunities")
 @RequiredArgsConstructor
-public class LeadController {
+public class OpportunityController {
 
-    private final LeadService leadService;
+    private final OpportunityService opportunityService;
 
     @GetMapping
-    public PageResponse<Lead> findAllLeads(
+    public PageResponse<OpportunityResponse> findAllOpportunities(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return PageResponse.fromPage(leadService.findAllLeads(Pagination.of(page, size)));
+        return PageResponse.fromPage(opportunityService.findAllOpportunities(Pagination.of(page, size)).map(OpportunityResponse::fromEntity));
     }
 
     @GetMapping("/{id}")
-    public Lead findByIdLead(@PathVariable String id) {
-        return leadService.findByIdLead(id);
+    public OpportunityResponse findByIdOpportunity(@PathVariable String id) {
+        return OpportunityResponse.fromEntity(opportunityService.findByIdOpportunity(id));
     }
 
     @PostMapping
-    public ResponseEntity<CreateLeadResponse> createLeads(@Valid @RequestBody CreateLeadRequest request) {
-        Lead created = leadService.createLeads(request.toEntity());
-        return ResponseEntity.status(HttpStatus.CREATED).body(CreateLeadResponse.fromEntity(created));
+    public ResponseEntity<OpportunityResponse> createOpportunities(@Valid @RequestBody CreateOpportunityRequest request) {
+        Opportunity created = opportunityService.createOpportunities(request.toEntity());
+        return ResponseEntity.status(HttpStatus.CREATED).body(OpportunityResponse.fromEntity(created));
     }
 
-    /** 完整更新尚未審核的 Lead；已完成審核時回傳 409。 */
+    /** 完整更新；未提供的欄位會清空。 */
     @PutMapping("/{id}")
-    public Lead updateLeads(@PathVariable String id, @Valid @RequestBody Lead lead) {
-        return leadService.updateLeads(id, lead);
+    public OpportunityResponse updateOpportunities(@PathVariable String id, @Valid @RequestBody UpdateOpportunityRequest request) {
+        return OpportunityResponse.fromEntity(opportunityService.updateOpportunities(id, request.toEntity()));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteLeads(@PathVariable String id) {
-        leadService.deleteLeads(id);
+    public ResponseEntity<Void> deleteOpportunities(@PathVariable String id) {
+        opportunityService.deleteOpportunities(id);
         return ResponseEntity.noContent().build();
     }
 

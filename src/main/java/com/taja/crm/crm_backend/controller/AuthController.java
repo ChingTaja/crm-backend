@@ -30,7 +30,7 @@ public class AuthController {
 
     @PostMapping("/login")
     public LoginResponse login(@Valid @RequestBody LoginRequest request) {
-        return jwtService.issue(userAuthService.login(request));
+        return jwtService.login(request);
     }
 
     @GetMapping("/me")

@@ -33,7 +33,7 @@ public class Lead {
     // 目前儲存負責人姓名。
     private String owner;
 
-    @Pattern(regexp = "待聯繫|聯繫中|已合格|不合格")
+    @Pattern(regexp = "待聯繫|已合格|不合格")
     private String status = LeadStatus.PENDING.getValue();
 
     @Valid
