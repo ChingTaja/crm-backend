@@ -13,6 +13,10 @@ public class EntityMetadataService {
 
     public List<FieldMetadata> findFieldsByEntityName(String entityName) {
         return switch (entityName) {
+            case "roles" -> List.of(
+                    new FieldMetadata("id", "角色 ID", "string", "id", true, null, null, null),
+                    field("code", "角色代碼", "string", "code"),
+                    field("name", "角色名稱", "string", "name"));
             case "users" -> List.of(
                     field("username", "帳號", "string", "username"),
                     field("email", "電子郵件", "email", "email"),
