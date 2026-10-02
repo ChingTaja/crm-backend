@@ -17,6 +17,13 @@ public class EntityMetadataService {
                     new FieldMetadata("id", "角色 ID", "string", "id", true, null, null, null),
                     field("code", "角色代碼", "string", "code"),
                     field("name", "角色名稱", "string", "name"));
+            case "products" -> List.of(
+                    field("name", "名稱", "text", "name"),
+                    field("sku", "產品編號", "text", "sku"),
+                    field("price", "單價（TWD）", "number", "price"),
+                    new FieldMetadata("status", "狀態", "option", "status", false,
+                            List.of(new com.taja.crm.crm_backend.model.Option("啟用", "啟用"),
+                                    new com.taja.crm.crm_backend.model.Option("停用", "停用")), null, null));
             case "users" -> List.of(
                     field("username", "帳號", "string", "username"),
                     field("email", "電子郵件", "email", "email"),

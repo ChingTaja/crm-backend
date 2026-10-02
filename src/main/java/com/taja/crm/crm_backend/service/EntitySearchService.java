@@ -1,6 +1,7 @@
 package com.taja.crm.crm_backend.service;
 
 import com.taja.crm.crm_backend.dto.PageResponse;
+import com.taja.crm.crm_backend.dto.product.ProductResponse;
 import com.taja.crm.crm_backend.dto.auth.*;
 import com.taja.crm.crm_backend.dto.contact.ContactResponse;
 import com.taja.crm.crm_backend.dto.customer.CustomerResponse;
@@ -35,6 +36,7 @@ public class EntitySearchService {
     private static final Set<String> EXACT_OPS = Set.of("equals", "notEquals", "empty", "notEmpty");
     private static final Set<String> ORDERED_OPS = Set.of("equals", "notEquals", "greaterThan", "greaterThanOrEqual", "lessThan", "lessThanOrEqual", "empty", "notEmpty");
     private static final Map<String, List<String>> KEYWORDS = Map.of(
+            "products", List.of("name", "sku"),
             "leads", List.of("name", "company", "email", "phone", "owner", "source", "qualification.reason", "qualification.note"),
             "customers", List.of("name", "company", "email", "phone", "owner"),
             "contacts", List.of("name", "company", "email", "phone", "owner"),
@@ -51,6 +53,7 @@ public class EntitySearchService {
         if (!KEYWORDS.containsKey(entity)) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到 entity：" + entity);
         Plan plan = validate(entity, request);
         return switch (entity) {
+            case "products" -> query(Product.class, plan, ProductResponse::fromEntity);
             case "leads" -> query(Lead.class, plan, Function.identity());
             case "customers" -> query(Customer.class, plan, CustomerResponse::fromEntity);
             case "contacts" -> query(Contact.class, plan, ContactResponse::fromEntity);
@@ -145,7 +148,7 @@ public class EntitySearchService {
                 if (!string.matches("\\d{4}-\\d{2}-\\d{2}")) throw bad(name + " 必須為 YYYY-MM-DD");
                 try { value = LocalDate.parse(string); }
                 catch (DateTimeParseException e) { throw bad(name + " 日期無效"); }
-            } else if ("optionSet".equals(field.type())) {
+            } else if (Set.of("option", "optionSet").contains(field.type())) {
                 if (!field.options().containsKey(string)) throw bad(name + " 的選項 key 無效");
                 value = field.options().get(string);
             } else value = field.text() ? string.strip().toLowerCase(Locale.ROOT) : string;
