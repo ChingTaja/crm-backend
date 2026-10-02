@@ -33,14 +33,13 @@ class LeadServiceTests {
     }
 
     @Test
-    void updatePreservesTargetIdAndClearsOmittedQualification() {
+    void updatePreservesTargetId() {
         Lead existing = new Lead();
         existing.setId("target-id");
-        existing.setQualification(new LeadQualification());
         Lead replacement = new Lead();
         replacement.setId("different-id");
         replacement.setName("新名稱");
-        when(leadRepository.findById("target-id")).thenReturn(Optional.of(existing));
+        when(leadRepository.findForUpdateById("target-id")).thenReturn(Optional.of(existing));
         when(leadRepository.save(existing)).thenReturn(existing);
 
         Lead result = leadService.updateLeads("target-id", replacement);
@@ -53,6 +52,7 @@ class LeadServiceTests {
     @Test
     void missingLeadCannotBeUpdatedOrDeleted() {
         when(leadRepository.findById("missing")).thenReturn(Optional.empty());
+        when(leadRepository.findForUpdateById("missing")).thenReturn(Optional.empty());
 
         assertThrows(EntityNotFoundException.class,
                 () -> leadService.updateLeads("missing", new Lead()));

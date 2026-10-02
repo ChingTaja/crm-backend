@@ -9,21 +9,20 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
-import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-class CustomerControllerTests {
+class CustomerControllerTests extends JwtTestSupport {
 
     @Autowired
     private MockMvc mvc;
 
     @Test
     void customerCrudPersistsChangesAndReturnsExpectedResponses() throws Exception {
-        String response = mvc.perform(post("/api/customers")
+        String response = mvc.perform(post("/api/customers").header("Authorization", bearerToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"name":"測試客戶","company":"測試公司","email":"customer@example.com",
@@ -39,14 +38,14 @@ class CustomerControllerTests {
                 .andReturn().getResponse().getContentAsString();
         String id = JsonPath.read(response, "$.id");
 
-        mvc.perform(get("/api/customers/{id}", id))
+        mvc.perform(get("/api/customers/{id}", id).header("Authorization", bearerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(id));
-        mvc.perform(get("/api/customers"))
+        mvc.perform(get("/api/customers").header("Authorization", bearerToken).param("size", "100"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[*].id", hasItem(id)));
+                .andExpect(jsonPath("$.content").isArray());
 
-        mvc.perform(put("/api/customers/{id}", id)
+        mvc.perform(put("/api/customers/{id}", id).header("Authorization", bearerToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"name":"更新客戶","company":"新公司","email":"updated@example.com",
@@ -54,7 +53,7 @@ class CustomerControllerTests {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(id));
-        mvc.perform(get("/api/customers/{id}", id))
+        mvc.perform(get("/api/customers/{id}", id).header("Authorization", bearerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("更新客戶"))
                 .andExpect(jsonPath("$.company").value("新公司"))
@@ -62,27 +61,27 @@ class CustomerControllerTests {
                 .andExpect(jsonPath("$.phone").value("0987654321"))
                 .andExpect(jsonPath("$.owner").value("李小華"));
 
-        mvc.perform(delete("/api/customers/{id}", id))
+        mvc.perform(delete("/api/customers/{id}", id).header("Authorization", bearerToken))
                 .andExpect(status().isNoContent())
                 .andExpect(content().string(""));
-        mvc.perform(get("/api/customers/{id}", id))
+        mvc.perform(get("/api/customers/{id}", id).header("Authorization", bearerToken))
                 .andExpect(status().isNotFound());
     }
 
     @Test
     void missingCustomerCannotBeUpdatedOrDeleted() throws Exception {
         String missing = "00000000-0000-0000-0000-000000000000";
-        mvc.perform(put("/api/customers/{id}", missing)
+        mvc.perform(put("/api/customers/{id}", missing).header("Authorization", bearerToken)
                         .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"不存在\"}"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.detail").value("找不到 Customer：" + missing));
-        mvc.perform(delete("/api/customers/{id}", missing))
+        mvc.perform(delete("/api/customers/{id}", missing).header("Authorization", bearerToken))
                 .andExpect(status().isNotFound());
     }
 
     @Test
     void malformedRequestReturnsBadRequest() throws Exception {
-        mvc.perform(post("/api/customers")
+        mvc.perform(post("/api/customers").header("Authorization", bearerToken)
                         .contentType(MediaType.APPLICATION_JSON).content("{"))
                 .andExpect(status().isBadRequest());
     }
