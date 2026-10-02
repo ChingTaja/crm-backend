@@ -17,6 +17,15 @@ public class EntityMetadataService {
                     new FieldMetadata("id", "角色 ID", "string", "id", true, null, null, null),
                     field("code", "角色代碼", "string", "code"),
                     field("name", "角色名稱", "string", "name"));
+            case "quotes" -> List.of(
+                    field("name", "報價名稱", "text", "name"),
+                    lookup("customer_id", "客戶", "customerId", "customers"),
+                    lookup("opportunity_id", "商機", "opportunityId", "opportunities"),
+                    field("valid_until", "有效期限", "date", "validUntil"),
+                    field("payment_terms", "付款條件", "text", "paymentTerms"),
+                    field("delivery_terms", "交付條件", "text", "deliveryTerms"),
+                    field("warranty", "保固條款", "text", "warranty"),
+                    field("notes", "備註", "text", "notes"));
             case "products" -> List.of(
                     field("name", "名稱", "text", "name"),
                     field("sku", "產品編號", "text", "sku"),
