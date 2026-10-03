@@ -17,6 +17,19 @@ public class EntityMetadataService {
                     new FieldMetadata("id", "角色 ID", "string", "id", true, null, null, null),
                     field("code", "角色代碼", "string", "code"),
                     field("name", "角色名稱", "string", "name"));
+            case "orders" -> List.of(
+                    new FieldMetadata("number", "訂單編號", "text", "number", true, null, null, null),
+                    new FieldMetadata("name", "訂單名稱", "text", "name", true, null, null, null),
+                    new FieldMetadata("customer_id", "客戶", "lookup", "customerId", true, null, "customers", "id"),
+                    new FieldMetadata("customer_name", "客戶名稱", "text", "customerName", true, null, null, null),
+                    new FieldMetadata("quote_number", "報價編號", "text", "quoteNumber", true, null, null, null),
+                    new FieldMetadata("total_cents", "總額（分）", "number", "totalCents", true, null, null, null),
+                    new FieldMetadata("created_at", "建立時間", "dateTime", "createdAt", true, null, null, null),
+                    new FieldMetadata("status", "狀態", "option", "status", true,
+                        List.of(new com.taja.crm.crm_backend.model.Option("Confirmed", "已確認"),
+                                new com.taja.crm.crm_backend.model.Option("Processing", "處理中"),
+                                new com.taja.crm.crm_backend.model.Option("Completed", "已完成"),
+                                new com.taja.crm.crm_backend.model.Option("Cancelled", "已取消")), null, null));
             case "quotes" -> List.of(
                     field("name", "報價名稱", "text", "name"),
                     lookup("customer_id", "客戶", "customerId", "customers"),

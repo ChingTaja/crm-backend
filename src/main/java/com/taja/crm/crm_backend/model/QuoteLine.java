@@ -14,6 +14,10 @@ public class QuoteLine {
     @Column(nullable = false) private String productName;
     @Column(nullable = false) private String sku;
     @Column(nullable = false, precision = 19, scale = 2) private BigDecimal catalogPrice;
+    private Long subtotalCents;
+    private Long discountCents;
+    private Long taxCents;
+    private Long totalCents;
     @Column(nullable = false, precision = 12, scale = 3) private BigDecimal quantity;
     @Column(nullable = false, precision = 14, scale = 2) private BigDecimal unitPrice;
     @Column(nullable = false, precision = 7, scale = 4) private BigDecimal discountPercent;

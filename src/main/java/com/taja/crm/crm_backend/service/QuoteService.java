@@ -67,7 +67,7 @@ public class QuoteService {
             throw error(HttpStatus.CONFLICT, "QUOTE_REVISION_CONFLICT", "報價單已被其他使用者更新，請重新載入。");
     }
     private void unconverted(Quote quote) {
-        if (quote.getOrderId() != null) throw conflict("報價单已轉為訂單，不可再修改。");
+        if (quote.getOrderId() != null) throw conflict("報價單已轉為訂單，不可再修改。");
     }
     private void notExpired(QuoteVersion version) {
         if (version.getTerms().getValidUntil().isBefore(today()))
@@ -205,6 +205,14 @@ public class QuoteService {
         order.setCreatedAt(clock.instant()); order.setCreatedBy(actorId); order.setTerms(copyTerms(version.getTerms()));
         QuoteTotals totals = new QuoteTotals(); BeanUtils.copyProperties(version.getTotals(), totals); order.setTotals(totals);
         for (QuoteLine line : version.getLines()) order.getLines().add(copyLine(line, true));
+        order.setNumber("SO-" + today().format(DateTimeFormatter.ofPattern("yyyyMM")) + "-"
+                + String.format(Locale.ROOT, "%04d", jdbc.queryForObject("select nextval('order_number_seq')", Long.class)));
+        order.setCustomerName(version.getTerms().getCustomer().getName());
+        order.setQuoteNumber(quote.getNumber()); order.setQuoteVersion(version.getVersion());
+        order.setUpdatedAt(order.getCreatedAt());
+        OrderAudit entry = new OrderAudit(); entry.setAt(order.getCreatedAt()); entry.setActorId(actorId);
+        entry.setActorName(actor.getUsername()); entry.setAction("CreatedFromQuote"); entry.setToStatus("Confirmed");
+        order.getAudit().add(entry);
         orders.saveAndFlush(order);
         quote.setOrderId(order.getId()); version.setRevision(version.getRevision() + 1);
         audit(quote, version, actor, "CONVERTED_TO_ORDER", "建立訂單 " + order.getId());
@@ -257,6 +265,10 @@ public class QuoteService {
             BigDecimal base = line.getUnitPrice().movePointRight(2).multiply(line.getQuantity()).setScale(0, RoundingMode.HALF_UP);
             BigDecimal off = base.multiply(line.getDiscountPercent()).movePointLeft(2).setScale(0, RoundingMode.HALF_UP);
             BigDecimal vat = base.subtract(off).multiply(line.getTaxPercent()).movePointLeft(2).setScale(0, RoundingMode.HALF_UP);
+            if (base.compareTo(MAX_CENTS) > 0 || vat.compareTo(MAX_CENTS) > 0)
+                throw error(HttpStatus.BAD_REQUEST, "QUOTE_AMOUNT_TOO_LARGE", "報價金額超出可精確表示的範圍。");
+            line.setSubtotalCents(base.longValueExact()); line.setDiscountCents(off.longValueExact());
+            line.setTaxCents(vat.longValueExact()); line.setTotalCents(base.subtract(off).add(vat).longValueExact());
             subtotal = subtotal.add(base); discount = discount.add(off); tax = tax.add(vat);
         }
         BigDecimal total = subtotal.subtract(discount).add(tax);
