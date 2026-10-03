@@ -15,8 +15,10 @@ public class EntityMetadataService {
         return switch (entityName) {
             case "roles" -> List.of(
                     new FieldMetadata("id", "角色 ID", "string", "id", true, null, null, null),
-                    field("code", "角色代碼", "string", "code"),
-                    field("name", "角色名稱", "string", "name"));
+                    new FieldMetadata("code", "角色代碼", "string", "code", true, null, null, null),
+                    field("name", "角色名稱", "string", "name"),
+                    field("description", "角色說明", "text", "description"),
+                    new FieldMetadata("revision", "版本", "number", "revision", true, null, null, null));
             case "orders" -> List.of(
                     new FieldMetadata("number", "訂單編號", "text", "number", true, null, null, null),
                     new FieldMetadata("name", "訂單名稱", "text", "name", true, null, null, null),

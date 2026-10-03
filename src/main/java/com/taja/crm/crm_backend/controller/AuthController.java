@@ -24,8 +24,7 @@ public class AuthController {
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
     public UserResponse register(@Valid @RequestBody RegisterRequest request, Principal principal) {
-        String actorId = principal == null ? null : principal.getName();
-        return userAuthService.register(request, actorId);
+        return userAuthService.register(request, null);
     }
 
     @PostMapping("/login")
@@ -34,7 +33,7 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    public UserResponse currentUser(Principal principal) {
+    public CurrentUserResponse currentUser(Principal principal) {
         return userAuthService.findCurrentUser(principal.getName());
     }
 

@@ -6,4 +6,4 @@ import jakarta.validation.constraints.*;
 public record UpdateUserRequest(
         @NotBlank @Size(max = 100) String username,
         @NotBlank @Email @Size(max = 254) String email,
-        @NotBlank String roleId) {}
+        String roleId) {}

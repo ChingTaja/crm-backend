@@ -16,4 +16,12 @@ public class Role {
     private String code;
     @NotBlank @Column(nullable = false)
     private String name;
+    @Column(length=2000) private String description;
+    @Column(nullable=false, columnDefinition="bigint default 1") private long revision = 1;
+    @ElementCollection
+    @CollectionTable(name="role_permissions", joinColumns=@JoinColumn(name="role_id"),
+        uniqueConstraints=@UniqueConstraint(columnNames={"role_id","permission_code"}))
+    @Column(name="permission_code", nullable=false)
+    private java.util.Set<String> permissionCodes = new java.util.HashSet<>();
+
 }

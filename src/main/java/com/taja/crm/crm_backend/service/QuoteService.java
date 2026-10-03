@@ -25,6 +25,7 @@ import org.springframework.validation.annotation.Validated;
 @Transactional(readOnly = true)
 public class QuoteService {
     private final QuoteRepository quotes;
+    private final PermissionService access;
     private final SalesOrderRepository orders;
     private final ProductRepository products;
     private final CustomerRepository customers;
@@ -152,7 +153,7 @@ public class QuoteService {
     @Transactional
     public QuoteResponse review(String actorId, String id, String versionId, @NotNull @Valid ReviewQuoteRequest request) {
         User actor = actor(actorId);
-        if (!manager(actor)) throw error(HttpStatus.FORBIDDEN, "QUOTE_REVIEW_FORBIDDEN", "只有主管可以審批報價單。");
+        access.require(actorId, "quotes.approve");
         Quote quote = load(id, actor, true); unconverted(quote);
         QuoteVersion version = version(quote, versionId); revision(version, request.expectedRevision());
         if (version.getCreatedBy().equals(actorId)) throw error(HttpStatus.FORBIDDEN, "QUOTE_SELF_REVIEW", "不可審批自己建立的版本。");

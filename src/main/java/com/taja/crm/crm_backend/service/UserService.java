@@ -22,47 +22,47 @@ public class UserService {
     private final PasswordResetTokenRepository tokens;
     private final UserAuthService auth;
 
-    private void requireAdmin(String actorId) {
-        if (actorId == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "請先登入");
-        }
-        User actor = users.findById(actorId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "請重新登入"));
-        if (actor.getRole() == null || !"ADMIN".equals(actor.getRole().getCode())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "只有管理員可以管理使用者");
-        }
-    }
+    private final PermissionService access;
 
     public Page<UserResponse> findAllUsers(String actorId, Pageable pageable) {
-        requireAdmin(actorId);
+        access.require(actorId, "users.read");
         return users.findAll(pageable).map(UserResponse::fromEntity);
     }
 
     public UserResponse findByIdUser(String actorId, String id) {
-        requireAdmin(actorId);
+        access.require(actorId, "users.read");
         return UserResponse.fromEntity(findUser(id));
     }
 
     @Transactional
     public UserResponse createUsers(String actorId, RegisterRequest request) {
-        requireAdmin(actorId);
+        access.require(actorId, "users.create");
         return auth.register(request, actorId);
     }
 
     @Transactional
     public UserResponse updateUsers(String actorId, String id, UpdateUserRequest request) {
-        requireAdmin(actorId);
+        access.lockAdministration();
+        access.require(actorId, "users.update");
         User user = users.findForResetById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到 User：" + id));
+        access.manageTarget(actorId, user);
         String username = request.username().strip();
         String email = request.email().strip().toLowerCase(Locale.ROOT);
         if (users.existsByUsernameAndIdNot(username, id) || users.existsByEmailIgnoreCaseAndIdNot(email, id)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "帳號或 email 已被使用");
         }
-        var role = roles.findById(request.roleId())
+        var role = request.roleId() == null ? user.getRole() : roles.findById(request.roleId())
                 .orElseThrow(() -> new IllegalArgumentException("找不到指定角色"));
-        if (id.equals(actorId) && !"ADMIN".equals(role.getCode())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "不能移除自己的管理員角色");
+        String beforeRole = user.getRole() == null ? null : user.getRole().getId();
+        boolean changed = !java.util.Objects.equals(beforeRole, role == null ? null : role.getId());
+        if (changed) {
+            access.require(actorId, "users.assign-role");
+            if (id.equals(actorId)) throw new ResponseStatusException(HttpStatus.CONFLICT, "不能改派自己的角色");
+            access.requireAssignable(actorId, role);
+            if (user.getRole() != null && "ADMIN".equals(user.getRole().getCode()) && users.countByRoleCode("ADMIN") <= 1)
+                throw new QuoteException(HttpStatus.CONFLICT, "LAST_ADMIN_PROTECTED", "不能移除最後一位管理員。");
+            access.audit(actorId, "UserRoleAssigned", id, beforeRole, role.getId());
         }
         if (!user.getEmail().equalsIgnoreCase(email)) {
             tokens.invalidateForUser(id);
@@ -75,12 +75,17 @@ public class UserService {
 
     @Transactional
     public void deleteUsers(String actorId, String id) {
-        requireAdmin(actorId);
+        access.lockAdministration();
+        access.require(actorId, "users.delete");
         if (id.equals(actorId)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "不能刪除目前登入的管理員");
         }
         User user = users.findForResetById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到 User：" + id));
+        access.manageTarget(actorId, user);
+        if (user.getRole() != null && "ADMIN".equals(user.getRole().getCode()) && users.countByRoleCode("ADMIN") <= 1)
+            throw new QuoteException(HttpStatus.CONFLICT, "LAST_ADMIN_PROTECTED", "不能刪除最後一位管理員。");
+        access.audit(actorId, "UserDeleted", id, user.getRole() == null ? null : user.getRole().getId(), null);
         tokens.deleteByUserId(id);
         users.delete(user);
         users.flush();

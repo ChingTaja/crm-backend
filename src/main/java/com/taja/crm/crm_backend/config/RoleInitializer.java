@@ -16,7 +16,11 @@ public class RoleInitializer implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        jdbc.update("INSERT INTO roles (id, code, name) VALUES (?, 'USER', '一般使用者') ON CONFLICT (code) DO NOTHING",
+        jdbc.update("INSERT INTO roles (id, code, name, revision) VALUES (?, 'USER', '一般使用者', 1) ON CONFLICT (code) DO NOTHING",
+                UUID.randomUUID().toString());
+        jdbc.update("INSERT INTO roles (id, code, name, revision) VALUES (?, 'ADMIN', '管理員', 1) ON CONFLICT (code) DO NOTHING",
+                UUID.randomUUID().toString());
+        jdbc.update("INSERT INTO roles (id, code, name, revision) VALUES (?, 'MANAGER', '主管', 1) ON CONFLICT (code) DO NOTHING",
                 UUID.randomUUID().toString());
         jdbc.update("UPDATE users SET role_id = (SELECT id FROM roles WHERE code = 'USER') WHERE role_id IS NULL");
     }

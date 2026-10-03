@@ -16,6 +16,7 @@ import org.springframework.http.HttpStatus;
 @Service @RequiredArgsConstructor @Transactional(readOnly=true)
 public class OrderService {
  private final SalesOrderRepository orders;
+ private final PermissionService access;
  private final UserRepository users;
  private final Clock clock;
  private static final ZoneId ZONE=ZoneId.of("Asia/Taipei");
@@ -31,15 +32,20 @@ public class OrderService {
   if(!permitted(order,actor)) throw error(HttpStatus.FORBIDDEN,"ORDER_FORBIDDEN","您沒有操作此訂單的權限。");
   return order;
  }
- private List<OrderStatus> transitions(SalesOrder o) {
-  return switch(OrderStatus.valueOf(o.getStatus())) {
+ private List<OrderStatus> transitions(SalesOrder o,String actorId) {
+  List<OrderStatus> possible = switch(OrderStatus.valueOf(o.getStatus())) {
    case Confirmed -> List.of(OrderStatus.Processing,OrderStatus.Cancelled);
    case Processing -> List.of(OrderStatus.Completed,OrderStatus.Cancelled);
    default -> List.of();
   };
+  var codes=access.permissions(actorId);
+  return possible.stream().filter(status->codes.contains(permission(status))).toList();
+ }
+ private String permission(OrderStatus status) {
+  return "orders."+switch(status) {case Processing -> "process";case Completed -> "complete";case Cancelled -> "cancel";default -> "unsupported";};
  }
  public OrderResponse findByIdOrder(String actorId,String id) {
-  var o=load(id,actor(actorId),false);return OrderResponse.of(o,transitions(o));
+  var o=load(id,actor(actorId),false);return OrderResponse.of(o,transitions(o,actorId));
  }
  public PageResponse<OrderSummaryResponse> findAllOrders(String actorId,int page,int size,String keyword,
   OrderStatus status,String customerId,LocalDate from,LocalDate to,String sort,String direction) {
@@ -72,10 +78,11 @@ public class OrderService {
  }
  @Transactional
  public OrderResponse updateOrderStatus(String actorId,String id,UpdateOrderStatusRequest request) {
+  access.require(actorId,permission(request.status()));
   User actor=actor(actorId);SalesOrder order=load(id,actor,true);
   if(order.getRevision()!=request.expectedRevision())
    throw error(HttpStatus.CONFLICT,"ORDER_REVISION_CONFLICT","訂單已被其他使用者更新，請重新載入。");
-  if(!transitions(order).contains(request.status()))
+  if(!transitions(order,actorId).contains(request.status()))
    throw error(HttpStatus.CONFLICT,"ORDER_INVALID_TRANSITION","訂單目前狀態不允許此變更，已完成或取消的訂單不可再異動。");
   if(request.status()==OrderStatus.Cancelled&&(request.reason()==null||request.reason().isBlank()))
    throw error(HttpStatus.BAD_REQUEST,"ORDER_REASON_REQUIRED","取消訂單時必須填寫原因。");
@@ -90,6 +97,6 @@ public class OrderService {
    case Cancelled -> {order.setCancelledAt(now);order.setCancellationReason(request.reason().strip());}
    default -> {}
   }
-  orders.flush();return OrderResponse.of(order,transitions(order));
+  orders.flush();return OrderResponse.of(order,transitions(order,actorId));
  }
 }

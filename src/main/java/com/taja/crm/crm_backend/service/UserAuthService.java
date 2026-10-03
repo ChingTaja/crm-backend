@@ -19,9 +19,11 @@ public class UserAuthService {
     private final PasswordEncoder encoder;
     private final RoleRepository roles;
     private final String dummyHash;
+    private final PermissionService access;
 
-    public UserAuthService(UserRepository users, PasswordEncoder encoder, RoleRepository roles) {
+    public UserAuthService(UserRepository users, PasswordEncoder encoder, RoleRepository roles, PermissionService access) {
         this.users = users;
+        this.access = access;
         this.roles = roles;
         this.encoder = encoder;
         this.dummyHash = encoder.encode(java.util.UUID.randomUUID().toString());
@@ -29,6 +31,7 @@ public class UserAuthService {
 
     @Transactional
     public UserResponse register(RegisterRequest request, String actorId) {
+        access.lockAdministration();
         String username = request.username().strip();
         String email = request.email().strip().toLowerCase(Locale.ROOT);
         if (request.password().getBytes(StandardCharsets.UTF_8).length > 72) {
@@ -40,19 +43,20 @@ public class UserAuthService {
         var role = request.roleId() == null
                 ? roles.findByCode("USER").orElseThrow(() -> new IllegalStateException("缺少預設 USER 角色"))
                 : roles.findById(request.roleId()).orElseThrow(() -> new IllegalArgumentException("找不到指定角色"));
-        if (!"USER".equals(role.getCode())) {
-            boolean admin = actorId != null && users.findById(actorId)
-                    .map(User::getRole).map(r -> "ADMIN".equals(r.getCode())).orElse(false);
-            if (!admin) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "只有管理員可以指定其他角色");
-            }
+        if (actorId == null) {
+            if (!"USER".equals(role.getCode())) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "公開註冊只允許最低權限角色");
+        } else {
+            access.require(actorId, "users.create");
+            access.requireAssignable(actorId, role);
         }
         User user = new User();
         user.setRole(role);
         user.setUsername(username);
         user.setEmail(email);
         user.setPasswordHash(encoder.encode(request.password()));
-        return UserResponse.fromEntity(users.saveAndFlush(user));
+        users.saveAndFlush(user);
+        access.audit(actorId, "UserRoleAssigned", user.getId(), null, role.getId());
+        return UserResponse.fromEntity(user);
     }
 
     @Transactional
@@ -66,8 +70,10 @@ public class UserAuthService {
         return UserResponse.fromEntity(user.orElseThrow());
     }
 
-    public UserResponse findCurrentUser(String id) {
-        return users.findById(id).map(UserResponse::fromEntity)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "請重新登入"));
+    public CurrentUserResponse findCurrentUser(String id) {
+        User user = access.actor(id);
+        return new CurrentUserResponse(user.getId(), user.getUsername(), user.getEmail(),
+            user.getRole() == null ? null : RoleResponse.fromEntity(user.getRole()),
+            access.effective(user.getRole()).stream().sorted().toList());
     }
 }

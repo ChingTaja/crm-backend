@@ -30,6 +30,8 @@ import org.springframework.web.server.ResponseStatusException;
 @Transactional(readOnly = true)
 public class EntitySearchService {
     private final EntityManager em;
+    private final PermissionService access;
+    private final RoleService roleService;
     private final EntityMetadataService metadata;
     private final UserRepository users;
     private static final Set<String> TEXT_OPS = Set.of("contains", "notContains", "equals", "notEquals", "startsWith", "empty", "notEmpty");
@@ -45,12 +47,8 @@ public class EntitySearchService {
     public PageResponse<?> search(String entity, String actorId, EntitySearchRequest request) {
         // 權限先於條件解析；不可被使用者的 OR 篩選繞過。
         if (actorId == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
-        if ("users".equals(entity)) {
-            var actor = users.findById(actorId).orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
-            if (actor.getRole() == null || !"ADMIN".equals(actor.getRole().getCode()))
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "只有管理員可以管理使用者");
-        }
         if (!KEYWORDS.containsKey(entity)) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到 entity：" + entity);
+        access.require(actorId, entity + ".read");
         Plan plan = validate(entity, request);
         return switch (entity) {
             case "products" -> query(Product.class, plan, ProductResponse::fromEntity);
@@ -59,7 +57,7 @@ public class EntitySearchService {
             case "contacts" -> query(Contact.class, plan, ContactResponse::fromEntity);
             case "opportunities" -> query(Opportunity.class, plan, OpportunityResponse::fromEntity);
             case "users" -> query(User.class, plan, UserResponse::fromEntity);
-            case "roles" -> query(Role.class, plan, RoleResponse::fromEntity);
+            case "roles" -> query(Role.class, plan, roleService::summary);
             default -> throw new IllegalStateException();
         };
     }
