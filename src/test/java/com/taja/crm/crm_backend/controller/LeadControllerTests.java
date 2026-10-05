@@ -18,6 +18,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc(addFilters = false)
 @WebMvcTest(LeadController.class)
 class LeadControllerTests {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    com.taja.crm.crm_backend.service.PermissionService permissions;
 
     @Autowired
     private MockMvc mvc;

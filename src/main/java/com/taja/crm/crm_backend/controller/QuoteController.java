@@ -21,6 +21,11 @@ public class QuoteController {
     public PageResponse<QuoteSummaryResponse> findAllQuotes(Principal actor, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
         return service.findAllQuotes(actor.getName(), Pagination.of(page, size));
     }
+    @GetMapping("/{id}/reviewer-options")
+    public java.util.List<ReviewerOption> reviewerOptions(Principal actor, @PathVariable String id,
+            @RequestParam(required=false) String keyword) {
+        return service.reviewerOptions(actor.getName(), id, keyword);
+    }
     @GetMapping("/{id}")
     public QuoteResponse findByIdQuote(Principal actor, @PathVariable String id) { return service.findByIdQuote(actor.getName(), id); }
     @PostMapping @ResponseStatus(HttpStatus.CREATED)
@@ -36,7 +41,7 @@ public class QuoteController {
         return service.newVersion(actor.getName(), id, versionId, request);
     }
     @PostMapping("/{id}/versions/{versionId}/request-approval")
-    public QuoteResponse requestApproval(Principal actor, @PathVariable String id, @PathVariable String versionId, @Valid @RequestBody QuoteActionRequest request) {
+    public QuoteResponse requestApproval(Principal actor, @PathVariable String id, @PathVariable String versionId, @Valid @RequestBody RequestQuoteApprovalRequest request) {
         return service.requestApproval(actor.getName(), id, versionId, request);
     }
     @PostMapping("/{id}/versions/{versionId}/review")
@@ -62,6 +67,11 @@ public class QuoteController {
     }
     @ExceptionHandler({IllegalArgumentException.class, MethodArgumentNotValidException.class, HttpMessageNotReadableException.class})
     public ProblemDetail validationError(Exception exception) {
+        if (exception instanceof MethodArgumentNotValidException invalid
+                && invalid.getBindingResult().getFieldError("reviewerId") != null) {
+            ProblemDetail result = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "請選擇審核人。");
+            result.setProperty("code", "QUOTE_REVIEWER_REQUIRED"); return result;
+        }
         String detail = exception instanceof IllegalArgumentException ? exception.getMessage() : "報價欄位格式不正確，請確認必填欄位、日期、金額與明細。";
         ProblemDetail result = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, detail);
         result.setProperty("code", "QUOTE_VALIDATION_ERROR"); return result;

@@ -62,6 +62,7 @@ class JwtSecurityTests {
             mvc.perform(get(url).header("Authorization", "Bearer invalid")).andExpect(status().isUnauthorized());
         }
         mvc.perform(get("/api/leads").header("Authorization", "Bearer " + token)).andExpect(status().isOk());
+        mvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + token)).andExpect(status().isOk());
         mvc.perform(get("/api/users").header("Authorization", "Bearer " + token)).andExpect(status().isForbidden());
     }
 

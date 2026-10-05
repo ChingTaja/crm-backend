@@ -116,6 +116,8 @@ class UserLoginTests {
         actor.setRole(adminRole);
         users.saveAndFlush(actor);
         mvc.perform(post("/api/auth/register").header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON).content(payload)).andExpect(status().isForbidden());
+        mvc.perform(post("/api/users").header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON).content(payload))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.role.id").value(adminRole.getId()))

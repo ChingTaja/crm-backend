@@ -24,6 +24,10 @@ public class QuoteVersion {
     @Column(nullable = false) private Instant createdAt;
     @Column(nullable = false) private String createdBy;
     private Instant sentAt;
+    private String reviewerId;
+    private String reviewerName;
+    private String approvalRequestedBy;
+    private Instant approvalRequestedAt;
     private String approvalBy;
     private Instant approvalAt;
     @Column(columnDefinition = "text") private String approvalReason;

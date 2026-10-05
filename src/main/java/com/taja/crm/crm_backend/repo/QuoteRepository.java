@@ -6,6 +6,17 @@ import org.springframework.data.domain.*;
 import org.springframework.data.jpa.repository.*;
 public interface QuoteRepository extends JpaRepository<Quote, String> {
     Page<Quote> findByCreatedBy(String createdBy, Pageable pageable);
+    @Query(value = """
+        select q from Quote q join q.versions v
+        where v.reviewerId = :actorId and v.approval = com.taja.crm.crm_backend.model.ApprovalStatus.Pending
+          and v.version = (select max(v2.version) from QuoteVersion v2 where v2.quote = q)
+        order by v.approvalRequestedAt asc, q.id asc
+        """, countQuery = """
+        select count(q) from Quote q join q.versions v
+        where v.reviewerId = :actorId and v.approval = com.taja.crm.crm_backend.model.ApprovalStatus.Pending
+          and v.version = (select max(v2.version) from QuoteVersion v2 where v2.quote = q)
+        """)
+    Page<Quote> findPendingReviews(String actorId, Pageable pageable);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select q from Quote q where q.id = :id")
     Optional<Quote> findForUpdateById(String id);

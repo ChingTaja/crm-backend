@@ -17,6 +17,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(EntityMetadataController.class)
 @Import(EntityMetadataService.class)
 class EntityMetadataControllerTests {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    com.taja.crm.crm_backend.service.PermissionService permissions;
     @Autowired
     private MockMvc mvc;
 

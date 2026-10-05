@@ -1,6 +1,7 @@
 package com.taja.crm.crm_backend.dto.quote;
 import com.taja.crm.crm_backend.model.*;
 import java.time.LocalDate;
+@io.swagger.v3.oas.annotations.media.Schema(requiredProperties={"id","number","name","customerId","customerName","version","status","approval","validUntil","totalCents","currency"})
 public record QuoteSummaryResponse(String id, String number, String name, String customerId, String customerName,
         String opportunityId, int version, QuoteStatus status, ApprovalStatus approval, LocalDate validUntil,
         long totalCents, String currency, String orderId) {

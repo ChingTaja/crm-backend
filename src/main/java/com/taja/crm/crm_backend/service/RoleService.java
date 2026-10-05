@@ -18,10 +18,10 @@ public class RoleService {
  public RoleDetailResponse detail(Role role) {
   List<String> codes=access.effective(role).stream().sorted().toList();
   return new RoleDetailResponse(role.getId(),role.getCode(),role.getName(),role.getDescription(),access.system(role),
-   users.countByRoleId(role.getId()),codes.size(),role.getRevision(),codes);
+   users.countByRoleId(role.getId()),codes.size(),role.getRevision(),QuotePermissionCompatibility.pending(role),QuotePermissionCompatibility.legacy(role).stream().sorted().toList(),codes);
  }
  public RoleSummaryResponse summary(Role r) {
-  var d=detail(r);return new RoleSummaryResponse(d.id(),d.code(),d.name(),d.description(),d.system(),d.userCount(),d.permissionCount(),d.revision());
+  var d=detail(r);return new RoleSummaryResponse(d.id(),d.code(),d.name(),d.description(),d.system(),d.userCount(),d.permissionCount(),d.revision(),d.quotePermissionMigrationRequired(),d.legacyQuotePermissionCodes());
  }
  public PageResponse<RoleSummaryResponse> findAllRoles(String actor,int page,int size,String keyword) {
   access.require(actor,"roles.read");
@@ -53,7 +53,7 @@ public class RoleService {
  }
  private String snapshot(Role role) {
   return "code="+role.getCode()+";name="+role.getName()+";description="+role.getDescription()
-   +";revision="+role.getRevision()+";permissionCodes="+access.effective(role).stream().sorted().toList();
+   +";revision="+role.getRevision()+";quotePermissionVersion="+role.getQuotePermissionVersion()+";permissionCodes="+role.getPermissionCodes().stream().sorted().toList();
  }
  @Transactional public RoleDetailResponse createRoles(String actor,CreateRoleRequest request) {
   access.lockAdministration();access.require(actor,"roles.create");
@@ -68,7 +68,10 @@ public class RoleService {
   access.lockAdministration();access.require(actor,"roles.update");Role role=find(id);manageable(actor,role);
   if(role.getRevision()!=request.expectedRevision())
    throw error(HttpStatus.CONFLICT,"ROLE_REVISION_CONFLICT","角色已被其他使用者更新，請重新載入。");
+  if(QuotePermissionCompatibility.pending(role)&&!access.admin(access.actor(actor)))
+   throw error(HttpStatus.FORBIDDEN,"QUOTE_PERMISSION_CONFIRMATION_REQUIRED","此角色具有部分舊報價授權，必須由管理員確認後儲存。");
   String before=snapshot(role);Set<String> codes=validate(actor,request.permissionCodes());
+  role.setQuotePermissionVersion(1);
   role.setName(request.name().strip());role.setDescription(request.description());role.getPermissionCodes().clear();role.getPermissionCodes().addAll(codes);
   role.setRevision(role.getRevision()+1);roles.flush();access.audit(actor,"RoleUpdated",id,before,snapshot(role));return detail(role);
  }

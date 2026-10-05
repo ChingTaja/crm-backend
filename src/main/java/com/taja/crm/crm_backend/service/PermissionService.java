@@ -23,14 +23,15 @@ public class PermissionService {
   if(role==null) return Set.of();
   return switch(role.getCode()) {
    case "ADMIN" -> PermissionCatalog.CODES;
-   case "USER" -> Set.of();
+   case "USER" -> Set.of("customers.read", "contacts.read", "leads.read",
+    "opportunities.read", "products.read", "quotes.read", "orders.read");
    case "MANAGER" -> {
     Set<String> result=new TreeSet<>(PermissionCatalog.CODES);
     result.removeIf(c->c.startsWith("users.")||c.startsWith("roles.")||c.startsWith("permissions."));
     yield result;
    }
    default -> {
-    Set<String> result=new TreeSet<>(role.getPermissionCodes());result.retainAll(PermissionCatalog.CODES);yield result;
+    yield QuotePermissionCompatibility.effective(role);
    }
   };
  }

@@ -19,6 +19,10 @@ public class PermissionWebConfig implements WebMvcConfigurer {
     if(pattern==null||!pattern.startsWith("/api/")||pattern.startsWith("/api/auth/")) return true;
     String actor=request.getUserPrincipal()==null?null:request.getUserPrincipal().getName();
     @SuppressWarnings("unchecked") Map<String,String> variables=(Map<String,String>)request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
+    if(pattern.equals("/api/quote-reviews") || pattern.equals("/api/quote-reviews/{quoteId}")
+       || pattern.equals("/api/quotes/{id}/versions/{versionId}/review")) {
+      access.actor(actor); return true; // Assignment and state are enforced by the business layer.
+    }
     if(pattern.equals("/api/roles/options")) {access.actor(actor);return true;} // service filters assignable roles
     if(pattern.equals("/api/orders/{id}/status")) {access.actor(actor);return true;} // permission depends on validated target status
     String entity=pattern.split("/")[2];
@@ -32,13 +36,11 @@ public class PermissionWebConfig implements WebMvcConfigurer {
      default -> "unsupported";
     };
     if(pattern.endsWith("/qualification")) action="qualify";
+    if(pattern.endsWith("/reviewer-options")) action="update";
     if("quotes".equals(entity)) {
      String suffix=pattern.substring(pattern.lastIndexOf('/')+1);
      action=switch(suffix) {
-      case "new-version","request-approval","send" -> suffix;
-      case "review" -> "approve";
-      case "decision" -> "record-decision";
-      case "convert-to-order" -> "convert";
+      case "new-version","request-approval","send","review","decision","convert-to-order" -> "update";
       default -> action;
      };
     }

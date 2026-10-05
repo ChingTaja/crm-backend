@@ -15,7 +15,7 @@ public final class PermissionCatalog {
   groups.forEach((entity,label)->{
    List<String> actions=switch(entity) {
     case "orders" -> List.of("read","process","complete","cancel");
-    case "quotes" -> List.of("read","create","update","delete","new-version","request-approval","approve","send","convert","record-decision");
+    case "quotes" -> List.of("read","create","update","delete");
     case "leads" -> List.of("read","create","update","delete","qualify");
     case "users" -> List.of("read","create","update","delete","assign-role");
     case "permissions" -> List.of("read");

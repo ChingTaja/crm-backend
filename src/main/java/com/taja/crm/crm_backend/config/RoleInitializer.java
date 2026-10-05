@@ -8,6 +8,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+@org.springframework.core.annotation.Order(0)
 @Component
 @RequiredArgsConstructor
 public class RoleInitializer implements ApplicationRunner {

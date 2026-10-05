@@ -15,6 +15,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc(addFilters = false)
 @WebMvcTest(AuthController.class)
 class AuthControllerTests {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    com.taja.crm.crm_backend.service.PermissionService permissions;
     @Autowired MockMvc mvc;
     @MockitoBean PasswordResetService service;
     @MockitoBean UserAuthService userAuthService;
