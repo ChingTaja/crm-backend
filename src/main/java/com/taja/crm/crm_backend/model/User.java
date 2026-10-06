@@ -22,6 +22,8 @@ public class User {
     private String email;
     @JsonIgnore @Column(name = "password_hash", nullable = false, length = 60)
     private String passwordHash;
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    private boolean enabled = true;
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "role_id", foreignKey = @ForeignKey(name = "fk_users_role"))
     private Role role;

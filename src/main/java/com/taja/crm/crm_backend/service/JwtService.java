@@ -37,6 +37,7 @@ public class JwtService {
     @Transactional(readOnly = true)
     public LoginResponse issue(UserResponse response) {
         var user = users.findById(response.id()).orElseThrow();
+        if (!user.isEnabled()) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "帳號已停用，請聯絡管理員。");
         var now = clock.instant();
         var claims = JwtClaimsSet.builder().issuer(issuer).subject(user.getId())
                 .issuedAt(now).expiresAt(now.plus(ttl)).claim("version", user.getTokenVersion()).build();

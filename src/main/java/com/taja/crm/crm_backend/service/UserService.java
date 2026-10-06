@@ -60,7 +60,7 @@ public class UserService {
             access.require(actorId, "users.assign-role");
             if (id.equals(actorId)) throw new ResponseStatusException(HttpStatus.CONFLICT, "不能改派自己的角色");
             access.requireAssignable(actorId, role);
-            if (user.getRole() != null && "ADMIN".equals(user.getRole().getCode()) && users.countByRoleCode("ADMIN") <= 1)
+            if (user.isEnabled() && user.getRole() != null && "ADMIN".equals(user.getRole().getCode()) && users.countByRoleCodeAndEnabledTrue("ADMIN") <= 1)
                 throw new QuoteException(HttpStatus.CONFLICT, "LAST_ADMIN_PROTECTED", "不能移除最後一位管理員。");
             access.audit(actorId, "UserRoleAssigned", id, beforeRole, role.getId());
         }
@@ -83,12 +83,33 @@ public class UserService {
         User user = users.findForResetById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到 User：" + id));
         access.manageTarget(actorId, user);
-        if (user.getRole() != null && "ADMIN".equals(user.getRole().getCode()) && users.countByRoleCode("ADMIN") <= 1)
+        if (user.isEnabled() && user.getRole() != null && "ADMIN".equals(user.getRole().getCode()) && users.countByRoleCodeAndEnabledTrue("ADMIN") <= 1)
             throw new QuoteException(HttpStatus.CONFLICT, "LAST_ADMIN_PROTECTED", "不能刪除最後一位管理員。");
         access.audit(actorId, "UserDeleted", id, user.getRole() == null ? null : user.getRole().getId(), null);
         tokens.deleteByUserId(id);
         users.delete(user);
         users.flush();
+    }
+
+    @Transactional
+    public UserResponse updateUserStatus(String actorId, String id, boolean enabled) {
+        access.lockAdministration();
+        access.require(actorId, "users.update");
+        User user = users.findForResetById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到 User：" + id));
+        if (!enabled && id.equals(actorId))
+            throw new QuoteException(HttpStatus.CONFLICT, "SELF_DISABLE_FORBIDDEN", "不能停用自己的帳號。");
+        if (!enabled && user.isEnabled() && user.getRole() != null
+                && "ADMIN".equals(user.getRole().getCode()) && users.countByRoleCodeAndEnabledTrue("ADMIN") <= 1)
+            throw new QuoteException(HttpStatus.CONFLICT, "LAST_ADMIN_PROTECTED", "不能停用最後一位有效管理員。");
+        access.manageTarget(actorId, user);
+        if (user.isEnabled() != enabled) {
+            access.audit(actorId, "UserStatusChanged", id, Boolean.toString(user.isEnabled()), Boolean.toString(enabled));
+            user.setEnabled(enabled);
+            user.setTokenVersion(user.getTokenVersion() + 1);
+            if (!enabled) tokens.invalidateForUser(id);
+        }
+        return UserResponse.fromEntity(users.saveAndFlush(user));
     }
 
     private User findUser(String id) {

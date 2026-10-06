@@ -44,6 +44,13 @@ public class UserController {
         return userService.updateUsers(actorId(request), id, body);
     }
 
+    @PatchMapping("/{id}/status")
+    @io.swagger.v3.oas.annotations.Operation(summary = "停用或重新啟用帳號", description = "需要 users.update；不使用 revision。停用會撤銷既有 Token，重新啟用後須重新登入。")
+    public UserResponse updateUserStatus(HttpServletRequest request, @PathVariable String id,
+            @Valid @RequestBody com.taja.crm.crm_backend.dto.user.UpdateUserStatusRequest body) {
+        return userService.updateUserStatus(actorId(request), id, body.enabled());
+    }
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteUsers(HttpServletRequest request, @PathVariable String id) {

@@ -15,7 +15,7 @@ public class PermissionService {
  private final Clock clock;
  public User actor(String id) {
   if(id==null) throw new QuoteException(HttpStatus.UNAUTHORIZED,"UNAUTHORIZED","請先登入。");
-  return users.findById(id).orElseThrow(()->new QuoteException(HttpStatus.UNAUTHORIZED,"UNAUTHORIZED","請重新登入。"));
+  return users.findById(id).filter(User::isEnabled).orElseThrow(()->new QuoteException(HttpStatus.UNAUTHORIZED,"UNAUTHORIZED","請重新登入。"));
  }
  public boolean admin(User user) {return user.getRole()!=null&&"ADMIN".equals(user.getRole().getCode());}
  public boolean system(Role role) {return PermissionCatalog.SYSTEM_ROLES.contains(role.getCode());}

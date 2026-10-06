@@ -9,6 +9,7 @@ public interface UserRepository extends JpaRepository<User, String> {
     long countByRoleId(String roleId);
     boolean existsByRoleId(String roleId);
     long countByRoleCode(String code);
+    long countByRoleCodeAndEnabledTrue(String code);
     boolean existsByUsernameAndIdNot(String username, String id);
     boolean existsByEmailIgnoreCaseAndIdNot(String email, String id);
     Optional<User> findByUsername(String username);

@@ -114,7 +114,7 @@ public class QuoteService {
         return List.copyOf(result);
     }
     private boolean eligibleReviewer(User candidate, User submitter, QuoteVersion version) {
-        return !candidate.getId().equals(submitter.getId()) && !candidate.getId().equals(version.getCreatedBy());
+        return candidate.isEnabled() && !candidate.getId().equals(submitter.getId()) && !candidate.getId().equals(version.getCreatedBy());
     }
     public List<ReviewerOption> reviewerOptions(String actorId, String id, String keyword) {
         access.require(actorId, "quotes.update");

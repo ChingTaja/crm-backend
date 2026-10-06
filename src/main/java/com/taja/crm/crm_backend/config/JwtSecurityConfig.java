@@ -48,7 +48,7 @@ public class JwtSecurityConfig {
             boolean valid = jwt.getSubject() != null && jwt.getExpiresAt() != null
                     && jwt.getIssuedAt() != null && version instanceof Number
                     && users.findById(jwt.getSubject())
-                        .map(user -> user.getTokenVersion() == ((Number) version).longValue()).orElse(false);
+                        .map(user -> user.isEnabled() && user.getTokenVersion() == ((Number) version).longValue()).orElse(false);
             return valid ? OAuth2TokenValidatorResult.success() : OAuth2TokenValidatorResult.failure(
                     new OAuth2Error("invalid_token", "登入已失效，請重新登入", null));
         };

@@ -64,7 +64,7 @@ public class UserAuthService {
         var user = users.findForLoginByUsername(request.username().strip());
         boolean matches = request.password().getBytes(StandardCharsets.UTF_8).length <= 72
                 && encoder.matches(request.password(), user.map(User::getPasswordHash).orElse(dummyHash));
-        if (user.isEmpty() || !matches) {
+        if (user.isEmpty() || !matches || !user.get().isEnabled()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "帳號或密碼錯誤");
         }
         return UserResponse.fromEntity(user.orElseThrow());
