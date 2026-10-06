@@ -3,6 +3,7 @@ package com.taja.crm.crm_backend.service;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -20,7 +21,13 @@ public class PasswordResetMailService {
         this.from = from;
     }
 
+    private boolean blank(String value) { return value == null || value.isBlank(); }
+
     public void send(String email, String token) {
+        if (from == null || from.isBlank()) throw new MailConfigurationException();
+        if (sender instanceof JavaMailSenderImpl smtp
+                && (blank(smtp.getHost()) || blank(smtp.getUsername()) || blank(smtp.getPassword())))
+            throw new MailConfigurationException();
         String link = UriComponentsBuilder.fromUriString(resetUrl)
                 .replaceQueryParam("token", token).build().encode().toUriString();
         SimpleMailMessage message = new SimpleMailMessage();
