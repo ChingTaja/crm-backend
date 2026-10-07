@@ -113,4 +113,55 @@ class UserControllerTests {
                 .content("{\"username\":\"test\",\"email\":\"test@example.com\",\"roleId\":\"missing\"}"))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    void disablingRevokesTokensAndReenablingRequiresNewLogin() throws Exception {
+        User target = new User();
+        target.setUsername("status-" + UUID.randomUUID());
+        target.setEmail(target.getUsername() + "@example.com");
+        target.setPasswordHash(encoder.encode("test-password"));
+        target.setRole(roles.findByCode("USER").orElseThrow());
+        users.saveAndFlush(target);
+        assertTrue(target.isEnabled());
+        String oldToken = jwtService.issue(com.taja.crm.crm_backend.dto.auth.UserResponse.fromEntity(target)).accessToken();
+        for (boolean enabled : new boolean[]{false, true}) {
+            mvc.perform(patch("/api/users/{id}/status", target.getId()).header("Authorization", "Bearer " + adminToken)
+                    .contentType(MediaType.APPLICATION_JSON).content("{\"enabled\":" + enabled + "}"))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.enabled").value(enabled))
+                    .andExpect(jsonPath("$.username").value(target.getUsername()))
+                    .andExpect(jsonPath("$.passwordHash").doesNotExist());
+            mvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + oldToken))
+                    .andExpect(status().isUnauthorized());
+            mvc.perform(get("/api/users/{id}", target.getId()).header("Authorization", "Bearer " + adminToken))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.enabled").value(enabled));
+            var login = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"username\":\"" + target.getUsername() + "\",\"password\":\"test-password\"}"));
+            if (!enabled) login.andExpect(status().isUnauthorized());
+            else {
+                String result = login.andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+                String newToken = JsonPath.read(result, "$.accessToken");
+                mvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + newToken)).andExpect(status().isOk());
+            }
+        }
+    }
+
+    @Test
+    void statusRequiresAuthenticationPermissionAndExplicitBoolean() throws Exception {
+        mvc.perform(patch("/api/users/{id}/status", admin.getId()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"enabled\":false}")).andExpect(status().isUnauthorized());
+        mvc.perform(patch("/api/users/{id}/status", admin.getId()).header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(patch("/api/users/{id}/status", admin.getId()).header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"enabled\":false}"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("SELF_DISABLE_FORBIDDEN"));
+        mvc.perform(patch("/api/users/missing/status").header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"enabled\":false}"))
+                .andExpect(status().isNotFound());
+        admin.setRole(roles.findByCode("USER").orElseThrow());
+        users.saveAndFlush(admin);
+        mvc.perform(patch("/api/users/missing/status").header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"enabled\":false}"))
+                .andExpect(status().isForbidden());
+    }
 }

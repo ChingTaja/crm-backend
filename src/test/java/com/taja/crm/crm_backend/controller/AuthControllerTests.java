@@ -59,4 +59,21 @@ class AuthControllerTests {
                 .content("{\"token\":\"" + token + "\",\"newPassword\":\"new-password\"}"))
                 .andExpect(status().isBadRequest());
     }
+    @Test
+    void mailFailuresHaveSafeDiagnosticCodes() throws Exception {
+        org.springframework.mail.MailException[] errors = {
+            new com.taja.crm.crm_backend.service.MailConfigurationException(),
+            new org.springframework.mail.MailAuthenticationException("sensitive-credential"),
+            new org.springframework.mail.MailSendException("sensitive-reset-token")
+        };
+        String[] codes = {"MAIL_NOT_CONFIGURED", "MAIL_AUTHENTICATION_FAILED", "MAIL_SEND_FAILED"};
+        for (int i = 0; i < errors.length; i++) {
+            doThrow(errors[i]).when(service).forgotPassword("user@gmail.com");
+            mvc.perform(post("/api/auth/forgot-password").contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"email\":\"user@gmail.com\"}"))
+                    .andExpect(status().isServiceUnavailable())
+                    .andExpect(jsonPath("$.code").value(codes[i]))
+                    .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("sensitive"))));
+        }
+    }
 }

@@ -39,12 +39,15 @@ class RoleSecurityTransactionTests {
  @Test @Transactional void lastAdministratorCannotBeDeletedOrReassigned() {
   User actor=admin(), target=admin();
   // Exercise the last-admin branch without altering real administrators in the development database.
-  doReturn(1L).when(users).countByRoleCode("ADMIN");
+  doReturn(1L).when(users).countByRoleCodeAndEnabledTrue("ADMIN");
   QuoteException deletion=assertThrows(QuoteException.class,()->userService.deleteUsers(actor.getId(),target.getId()));
   assertEquals("LAST_ADMIN_PROTECTED",deletion.getCode());
   QuoteException assignment=assertThrows(QuoteException.class,()->userService.updateUsers(actor.getId(),target.getId(),
    new UpdateUserRequest(target.getUsername(),target.getEmail(),roles.findByCode("USER").orElseThrow().getId())));
   assertEquals("LAST_ADMIN_PROTECTED",assignment.getCode());
+  QuoteException disabled=assertThrows(QuoteException.class,()->userService.updateUserStatus(actor.getId(),target.getId(),false));
+  assertEquals("LAST_ADMIN_PROTECTED",disabled.getCode());
+  assertTrue(target.isEnabled());
   assertTrue(users.existsById(target.getId()));
  }
 }

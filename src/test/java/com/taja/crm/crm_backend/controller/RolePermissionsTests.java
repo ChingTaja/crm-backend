@@ -139,6 +139,9 @@ class RolePermissionsTests {
    .andExpect(jsonPath("$.components.schemas.RoleDetailResponse.properties.permissionCodes").exists())
    .andExpect(jsonPath("$.components.schemas.CurrentUserResponse.properties.permissionCodes").exists())
    .andExpect(jsonPath("$.paths['/api/quote-reviews'].get").exists())
+   .andExpect(jsonPath("$.paths['/api/users/{id}/status'].patch").exists())
+   .andExpect(jsonPath("$.components.schemas.UserResponse.properties.enabled.type").value("boolean"))
+   .andExpect(jsonPath("$.components.schemas.UpdateUserStatusRequest.required[0]").value("enabled"))
    .andExpect(jsonPath("$.paths['/api/quotes/{id}/versions/{versionId}/review'].post['x-required-permission']").doesNotExist())
    .andReturn().getResponse().getContentAsString();
   java.nio.file.Files.writeString(java.nio.file.Path.of("target/openapi.json"),spec);
