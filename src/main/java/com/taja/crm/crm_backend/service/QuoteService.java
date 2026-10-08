@@ -59,6 +59,17 @@ public class QuoteService {
         authorize(quote, actor);
         return quote;
     }
+    private String boundOpportunity(Quote quote) {
+        Set<String> ids = new HashSet<>();
+        for (QuoteVersion v : quote.getVersions()) {
+            if (v.getTerms().getOpportunity() == null)
+                throw error(HttpStatus.CONFLICT, "QUOTE_OPPORTUNITY_MIGRATION_REQUIRED", "舊報價尚未完成商機歸屬確認，請聯絡管理員遷移。");
+            ids.add(v.getTerms().getOpportunity().getId());
+        }
+        if (ids.size() != 1)
+            throw error(HttpStatus.CONFLICT, "QUOTE_OPPORTUNITY_MIGRATION_REQUIRED", "報價版本的商機歸屬不一致，請聯絡管理員遷移。");
+        return ids.iterator().next();
+    }
     private QuoteVersion latest(Quote quote) { return quote.getVersions().getLast(); }
     private QuoteVersion version(Quote quote, String id) {
         QuoteVersion version = quote.getVersions().stream().filter(v -> v.getId().equals(id)).findFirst()
@@ -163,9 +174,12 @@ public class QuoteService {
         return reviewResponse(quote, actor);
     }
 
-    public PageResponse<QuoteSummaryResponse> findAllQuotes(String actorId, Pageable pageable) {
+    public PageResponse<QuoteSummaryResponse> findAllQuotes(String actorId, Pageable pageable, String opportunityId) {
         User actor = actor(actorId);
-        Page<Quote> page = manager(actor) ? quotes.findAll(pageable) : quotes.findByCreatedBy(actorId, pageable);
+        String filter = opportunityId == null || opportunityId.isBlank() ? null : opportunityId.strip();
+        Page<Quote> page = quotes.findVisibleQuotes(actorId, manager(actor), filter,
+                org.springframework.data.domain.PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(),
+                        org.springframework.data.domain.Sort.by("id")));
         return PageResponse.fromPage(page.map(q -> QuoteSummaryResponse.of(q, latest(q), today())));
     }
     public QuoteResponse findByIdQuote(String actorId, String id) { return response(load(id, actor(actorId), false), actorId); }
@@ -173,6 +187,7 @@ public class QuoteService {
     @Transactional
     public QuoteResponse createQuotes(String actorId, @NotNull @Valid CreateQuoteRequest request) {
         User actor = actor(actorId);
+        access.require(actorId, "opportunities.read");
         Quote quote = new Quote(); quote.setCreatedBy(actorId);
         long sequence = jdbc.queryForObject("select nextval('quote_number_seq')", Long.class);
         quote.setNumber("QT-" + today().format(DateTimeFormatter.ofPattern("yyyyMM")) + "-" + String.format(Locale.ROOT, "%04d", sequence));
@@ -191,6 +206,10 @@ public class QuoteService {
         QuoteVersion version = version(quote, versionId); revision(version, request.getExpectedRevision());
         if (version.getStatus() != QuoteStatus.Draft || version.getApproval() == ApprovalStatus.Pending || version.getApproval() == ApprovalStatus.Approved)
             throw conflict("此版本不可直接修改，請建立新版本。");
+        access.require(actorId, "opportunities.read");
+        String bound = boundOpportunity(quote);
+        if (!bound.equals(request.getOpportunityId()))
+            throw error(HttpStatus.CONFLICT, "QUOTE_OPPORTUNITY_IMMUTABLE", "報價建立後不可更換或清空所屬商機。");
         apply(version, request, false);
         version.setRevision(version.getRevision() + 1);
         audit(quote, version, actor, "UPDATED", "更新報價內容與明細。");
@@ -199,10 +218,33 @@ public class QuoteService {
 
     @Transactional
     public void deleteQuotes(String actorId, String id) {
-        User actor = actor(actorId); Quote quote = load(id, actor, true); unconverted(quote);
-        if (quote.getVersions().stream().anyMatch(v -> v.getStatus() != QuoteStatus.Draft || v.getSentAt() != null || v.getApproval() == ApprovalStatus.Pending))
-            throw conflict("僅能刪除從未送出、且沒有審批中版本的草稿報價單。");
-        quotes.delete(quote); quotes.flush();
+        deleteQuotesBatch(actorId, List.of(id));
+    }
+
+    @Transactional
+    public void deleteQuotesBatch(String actorId, List<String> ids) {
+        access.require(actorId, "quotes.delete");
+        User actor = actor(actorId);
+        List<Quote> selected = ids.stream().distinct().sorted().map(id -> load(id, actor, true)).toList();
+        // Lock quotes first, then all related opportunities in a fixed order.
+        // Read stage directly under the lock to avoid a stale persistence-context snapshot.
+        Set<String> opportunityIds = new TreeSet<>();
+        for (Quote quote : selected) for (QuoteVersion version : quote.getVersions()) {
+            Opportunity opportunity = version.getTerms().getOpportunity();
+            if (opportunity != null) opportunityIds.add(opportunity.getId());
+        }
+        for (String opportunityId : opportunityIds) {
+            String stage = jdbc.queryForObject("select stage from opportunities where id = ? for update", String.class, opportunityId);
+            if ("需求成交".equals(stage))
+                throw error(HttpStatus.CONFLICT, "QUOTE_OPPORTUNITY_WON", "商機已需求成交，無法刪除報價單。");
+        }
+        for (Quote quote : selected) {
+            unconverted(quote);
+            if (quote.getVersions().stream().anyMatch(v -> v.getStatus() != QuoteStatus.Draft || v.getSentAt() != null || v.getApproval() == ApprovalStatus.Pending))
+                throw conflict("僅能刪除從未送出、且沒有審批中版本的草稿報價單。");
+        }
+        selected.forEach(quotes::delete);
+        quotes.flush();
     }
 
     @Transactional
@@ -211,6 +253,7 @@ public class QuoteService {
         QuoteVersion source = version(quote, versionId); revision(source, request.expectedRevision());
         if (source.getApproval() == ApprovalStatus.Pending) throw conflict("審批中不可建立新版本。");
         if (source.getStatus() == QuoteStatus.Accepted) throw conflict("已接受的報價不可建立新版本。");
+        boundOpportunity(quote);
         QuoteVersion next = new QuoteVersion(); next.setQuote(quote); next.setVersion(source.getVersion() + 1);
         next.setCreatedAt(clock.instant()); next.setCreatedBy(actorId); next.setTerms(copyTerms(source.getTerms()));
         for (QuoteLine line : source.getLines()) next.getLines().add(copyLine(line, false));
@@ -325,9 +368,17 @@ public class QuoteService {
         QuoteTerms terms = new QuoteTerms(); terms.setName(request.getName().strip());
         if (terms.getName().isEmpty()) throw error(HttpStatus.BAD_REQUEST, "QUOTE_INVALID_NAME", "報價名稱不可空白。");
         terms.setCustomer(customers.findById(request.getCustomerId()).orElseThrow(() -> error(HttpStatus.BAD_REQUEST, "QUOTE_INVALID_CUSTOMER", "所屬客戶不存在。")));
-        if (request.getOpportunityId() != null) {
-            Opportunity opportunity = opportunities.findById(request.getOpportunityId()).orElseThrow(() -> error(HttpStatus.BAD_REQUEST, "QUOTE_INVALID_OPPORTUNITY", "商機不存在。"));
+        if (request.getOpportunityId() == null || request.getOpportunityId().isBlank())
+            throw error(HttpStatus.BAD_REQUEST, "QUOTE_INVALID_OPPORTUNITY", "請指定所屬商機。");
+        {
+            Opportunity opportunity = opportunities.findForUpdateById(request.getOpportunityId()).orElseThrow(() -> error(HttpStatus.BAD_REQUEST, "QUOTE_INVALID_OPPORTUNITY", "商機不存在。"));
             if (!opportunity.getCustomerId().equals(request.getCustomerId())) throw error(HttpStatus.BAD_REQUEST, "QUOTE_INVALID_OPPORTUNITY", "商機不屬於所選客戶。");
+            if (create) {
+                Boolean closed = jdbc.queryForObject("select (closed_at is not null or stage in ('需求成交', '失單')) from opportunities where id = ? for update",
+                        Boolean.class, opportunity.getId());
+                if (Boolean.TRUE.equals(closed))
+                    throw error(HttpStatus.CONFLICT, "QUOTE_OPPORTUNITY_CLOSED", "商機已結案，無法新增報價單。");
+            }
             terms.setOpportunity(opportunity);
         }
         terms.setValidUntil(request.getValidUntil()); terms.setPaymentTerms(text(request.getPaymentTerms()));

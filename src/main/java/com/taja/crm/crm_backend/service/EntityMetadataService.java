@@ -62,7 +62,7 @@ public class EntityMetadataService {
                     field("expected_close_date", "預計成交日", "date", "expectedCloseDate"),
                     field("owner", "負責人", "string", "owner"),
                     new FieldMetadata("stage", "商機階段", "optionSet", "stage", false,
-                            java.util.stream.Stream.of("需求確認", "提案報價", "協商中", "已成交", "已失單")
+                            java.util.stream.Stream.of("需求討論中", "需求成交", "失單")
                                     .map(value -> new com.taja.crm.crm_backend.model.Option(value, value)).toList(),
                             null, null));
             case "customers" -> List.copyOf(commonFields("客戶名稱"));

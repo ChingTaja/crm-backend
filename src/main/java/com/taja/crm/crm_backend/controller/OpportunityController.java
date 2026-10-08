@@ -55,6 +55,13 @@ public class OpportunityController {
         return OpportunityResponse.fromEntity(opportunityService.updateOpportunities(id, request.toEntity()));
     }
 
+    @PostMapping("/{id}/close")
+    @io.swagger.v3.oas.annotations.Operation(summary = "商機結案", description = "需要 opportunities.update；不使用 revision，已結案不可重複結案。")
+    public OpportunityResponse closeOpportunity(java.security.Principal actor, @PathVariable String id,
+            @Valid @RequestBody com.taja.crm.crm_backend.dto.opportunity.CloseOpportunityRequest request) {
+        return OpportunityResponse.fromEntity(opportunityService.closeOpportunity(actor.getName(), id, request));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteOpportunities(@PathVariable String id) {
         opportunityService.deleteOpportunities(id);

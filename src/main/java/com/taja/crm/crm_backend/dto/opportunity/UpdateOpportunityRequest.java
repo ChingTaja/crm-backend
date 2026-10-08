@@ -9,6 +9,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
+@com.fasterxml.jackson.annotation.JsonIgnoreProperties("stage")
 public class UpdateOpportunityRequest {
     @NotBlank @Size(max = 255)
     private String name;
@@ -21,8 +22,6 @@ public class UpdateOpportunityRequest {
     private LocalDate expectedCloseDate;
     @Size(max = 255)
     private String owner;
-    @NotBlank @Pattern(regexp = "需求確認|提案報價|協商中|已成交|已失單")
-    private String stage = "需求確認";
 
     public Opportunity toEntity() {
         Opportunity opportunity = new Opportunity();
@@ -32,7 +31,6 @@ public class UpdateOpportunityRequest {
         opportunity.setAmount(amount);
         opportunity.setExpectedCloseDate(expectedCloseDate);
         opportunity.setOwner(owner);
-        opportunity.setStage(stage);
         return opportunity;
     }
 }

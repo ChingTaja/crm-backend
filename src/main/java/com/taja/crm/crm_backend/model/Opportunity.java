@@ -26,7 +26,12 @@ public class Opportunity {
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal amount = BigDecimal.ZERO;
     private LocalDate expectedCloseDate;
-    @NotBlank @Pattern(regexp = "需求確認|提案報價|協商中|已成交|已失單")
+    @NotBlank @Pattern(regexp = "需求討論中|需求成交|失單")
     @Column(nullable = false)
-    private String stage = "需求確認";
+    private String stage = "需求討論中";
+    @Column(length = 2000)
+    private String closeDescription;
+    private java.time.Instant closedAt;
+    private String closedById;
+    private String closedByName;
 }

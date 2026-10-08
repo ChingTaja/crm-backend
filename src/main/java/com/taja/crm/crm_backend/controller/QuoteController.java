@@ -18,8 +18,8 @@ import org.springframework.web.bind.annotation.*;
 public class QuoteController {
     private final QuoteService service;
     @GetMapping
-    public PageResponse<QuoteSummaryResponse> findAllQuotes(Principal actor, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
-        return service.findAllQuotes(actor.getName(), Pagination.of(page, size));
+    public PageResponse<QuoteSummaryResponse> findAllQuotes(Principal actor, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size, @RequestParam(required = false) String opportunityId) {
+        return service.findAllQuotes(actor.getName(), Pagination.of(page, size), opportunityId);
     }
     @GetMapping("/{id}/reviewer-options")
     public java.util.List<ReviewerOption> reviewerOptions(Principal actor, @PathVariable String id,
@@ -33,6 +33,10 @@ public class QuoteController {
     @PutMapping("/{id}/versions/{versionId}")
     public QuoteResponse updateQuotes(Principal actor, @PathVariable String id, @PathVariable String versionId, @Valid @RequestBody UpdateQuoteRequest request) {
         return service.updateQuotes(actor.getName(), id, versionId, request);
+    }
+    @DeleteMapping @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteQuotesBatch(Principal actor, @Valid @RequestBody DeleteQuotesRequest request) {
+        service.deleteQuotesBatch(actor.getName(), request.ids());
     }
     @DeleteMapping("/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteQuotes(Principal actor, @PathVariable String id) { service.deleteQuotes(actor.getName(), id); }

@@ -9,7 +9,7 @@ import lombok.Setter;
 public class CreateQuoteRequest {
     @NotBlank @Size(max = 255) private String name;
     @NotBlank private String customerId;
-    private String opportunityId;
+    @NotBlank private String opportunityId;
     @NotNull private LocalDate validUntil;
     @NotEmpty @Size(max = 200) private List<@NotNull @Valid QuoteLineRequest> lines;
     @Size(max = 10000) private String paymentTerms;

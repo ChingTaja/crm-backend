@@ -35,6 +35,7 @@ public class PermissionWebConfig implements WebMvcConfigurer {
      case "DELETE" -> "delete";
      default -> "unsupported";
     };
+    if(pattern.equals("/api/opportunities/{id}/close")) action="update";
     if(pattern.endsWith("/qualification")) action="qualify";
     if(pattern.endsWith("/reviewer-options")) action="update";
     if("quotes".equals(entity)) {
