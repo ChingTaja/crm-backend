@@ -20,7 +20,8 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
     private final PasswordResetService passwordResetService;
     private final UserAuthService userAuthService;
-    private final JwtService jwtService;
+    private final com.taja.crm.crm_backend.service.RefreshTokenService refreshTokens;
+    private final com.taja.crm.crm_backend.config.AuthCookies cookies;
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
@@ -29,8 +30,30 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public LoginResponse login(@Valid @RequestBody LoginRequest request) {
-        return jwtService.login(request);
+    public LoginResponse login(@Valid @RequestBody LoginRequest request, jakarta.servlet.http.HttpServletResponse response) {
+        var grant=refreshTokens.login(request);cookies.set(response,grant);return grant.login();
+    }
+
+    @GetMapping("/csrf")
+    public CsrfResponse csrf(@io.swagger.v3.oas.annotations.Parameter(hidden=true) org.springframework.security.web.csrf.CsrfToken token,
+            jakarta.servlet.http.HttpServletResponse response) {
+        response.setHeader("Cache-Control","no-store");
+        return new CsrfResponse(token.getToken(),token.getHeaderName());
+    }
+
+    @PostMapping("/refresh")
+    public RefreshResponse refresh(@CookieValue(name=com.taja.crm.crm_backend.config.AuthCookies.REFRESH, required=false) String raw,
+            jakarta.servlet.http.HttpServletResponse response) {
+        var grant=refreshTokens.refresh(raw);cookies.set(response,grant);
+        var login=grant.login();return new RefreshResponse(login.accessToken(),login.tokenType(),login.expiresIn());
+    }
+
+    @ExceptionHandler(com.taja.crm.crm_backend.service.RefreshRejected.class)
+    public ProblemDetail refreshFailure(com.taja.crm.crm_backend.service.RefreshRejected exception,
+            jakarta.servlet.http.HttpServletResponse response) {
+        cookies.clear(response);
+        ProblemDetail problem=ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED,exception.getMessage());
+        problem.setProperty("code",exception.getCode());return problem;
     }
 
     @GetMapping("/me")
@@ -40,8 +63,9 @@ public class AuthController {
 
     @PostMapping("/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void logout(Principal principal) {
-        jwtService.logout(principal.getName());
+    public void logout(@CookieValue(name=com.taja.crm.crm_backend.config.AuthCookies.REFRESH, required=false) String raw,
+            jakarta.servlet.http.HttpServletResponse response) {
+        refreshTokens.logout(raw);cookies.clear(response);
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

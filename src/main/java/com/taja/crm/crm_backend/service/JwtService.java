@@ -39,7 +39,7 @@ public class JwtService {
         var user = users.findById(response.id()).orElseThrow();
         if (!user.isEnabled()) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "帳號已停用，請聯絡管理員。");
         var now = clock.instant();
-        var claims = JwtClaimsSet.builder().issuer(issuer).subject(user.getId())
+        var claims = JwtClaimsSet.builder().issuer(issuer).subject(user.getId()).id(java.util.UUID.randomUUID().toString())
                 .issuedAt(now).expiresAt(now.plus(ttl)).claim("version", user.getTokenVersion()).build();
         String token = encoder.encode(JwtEncoderParameters.from(
                 JwsHeader.with(MacAlgorithm.HS256).build(), claims)).getTokenValue();

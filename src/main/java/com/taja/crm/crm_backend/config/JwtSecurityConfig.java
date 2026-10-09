@@ -40,26 +40,36 @@ public class JwtSecurityConfig {
 
     @Bean
     public JwtDecoder jwtDecoder(SecretKey jwtSigningKey, UserRepository users,
-            @Value("${app.jwt.issuer}") String issuer) {
+            @Value("${app.jwt.issuer}") String issuer, java.time.Clock clock) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(jwtSigningKey)
                 .macAlgorithm(MacAlgorithm.HS256).build();
-        OAuth2TokenValidator<Jwt> accountValidator = jwt -> {
-            Object version = jwt.getClaims().get("version");
-            boolean valid = jwt.getSubject() != null && jwt.getExpiresAt() != null
-                    && jwt.getIssuedAt() != null && version instanceof Number
-                    && users.findById(jwt.getSubject())
-                        .map(user -> user.isEnabled() && user.getTokenVersion() == ((Number) version).longValue()).orElse(false);
-            return valid ? OAuth2TokenValidatorResult.success() : OAuth2TokenValidatorResult.failure(
-                    new OAuth2Error("invalid_token", "登入已失效，請重新登入", null));
-        };
-        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
-                JwtValidators.createDefaultWithIssuer(issuer), accountValidator));
+        decoder.setJwtValidator(jwt -> {
+            Object version=jwt.getClaims().get("version");
+            String code=null;
+            var now=clock.instant();
+            if(!issuer.equals(jwt.getClaims().get("iss")) || jwt.getSubject()==null
+                    || jwt.getExpiresAt()==null || jwt.getIssuedAt()==null || !(version instanceof Number)
+                    || jwt.getIssuedAt().isAfter(now.plusSeconds(60))
+                    || (jwt.getNotBefore()!=null && jwt.getNotBefore().isAfter(now))) code="ACCESS_TOKEN_INVALID";
+            else {
+                var user=users.findById(jwt.getSubject()).orElse(null);
+                if(user==null) code="ACCESS_TOKEN_INVALID";
+                else if(!user.isEnabled()) code="ACCOUNT_DISABLED";
+                else if(user.getTokenVersion()!=((Number)version).longValue()) code="ACCESS_TOKEN_REVOKED";
+                else if(!jwt.getExpiresAt().isAfter(now)) code="ACCESS_TOKEN_EXPIRED";
+            }
+            return code==null?OAuth2TokenValidatorResult.success():OAuth2TokenValidatorResult.failure(
+                    new OAuth2Error(code,"登入憑證驗證失敗",null));
+        });
         return decoder;
     }
 
     @Bean
+    @org.springframework.core.annotation.Order(2)
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
+                .cors(cors -> {})
+                .exceptionHandling(errors -> errors.authenticationEntryPoint((request,response,error) -> SecurityProblem.unauthorized(response,error)))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .requestCache(cache -> cache.disable())
@@ -68,7 +78,7 @@ public class JwtSecurityConfig {
                                 "/api/auth/forgot-password", "/api/auth/reset-password").permitAll()
                         .requestMatchers("/error", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .anyRequest().authenticated())
-                .oauth2ResourceServer(server -> server.jwt(jwt -> {}))
+                .oauth2ResourceServer(server -> server.jwt(jwt -> {}).authenticationEntryPoint((request,response,error) -> SecurityProblem.unauthorized(response,error)))
                 .build();
     }
 }
