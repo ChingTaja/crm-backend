@@ -19,6 +19,7 @@ import org.springframework.validation.annotation.Validated;
 public class CustomerService {
 
     private final CustomerRepository customerRepository;
+    private final DeletionGuard deletionGuard;
 
     public Page<Customer> findAllCustomers(Pageable pageable) {
         return customerRepository.findAll(pageable);
@@ -51,7 +52,12 @@ public class CustomerService {
 
     @Transactional
     public void deleteCustomers(String id) {
-        Customer customer = findByIdCustomer(id);
-        customerRepository.delete(customer);
+        Customer customer = customerRepository.findForUpdateById(id)
+                .orElseThrow(() -> new EntityNotFoundException("找不到 Customer：" + id));
+        deletionGuard.customer(id);
+        deletionGuard.delete("CUSTOMER_IN_USE", "此客戶仍有關聯資料，無法刪除。", () -> {
+            customerRepository.delete(customer);
+            customerRepository.flush();
+        });
     }
 }

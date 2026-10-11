@@ -36,7 +36,6 @@ public class EntityMetadataService {
                     field("name", "報價名稱", "text", "name"),
                     lookup("customer_id", "客戶", "customerId", "customers"),
                     lookup("opportunity_id", "商機", "opportunityId", "opportunities"),
-                    field("valid_until", "有效期限", "date", "validUntil"),
                     field("payment_terms", "付款條件", "text", "paymentTerms"),
                     field("delivery_terms", "交付條件", "text", "deliveryTerms"),
                     field("warranty", "保固條款", "text", "warranty"),

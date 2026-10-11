@@ -19,6 +19,7 @@ import org.springframework.validation.annotation.Validated;
 public class LeadService {
 
     private final LeadRepository leadRepository;
+    private final DeletionGuard deletionGuard;
 
     public Page<Lead> findAllLeads(Pageable pageable) {
         return leadRepository.findAll(pageable);
@@ -59,7 +60,12 @@ public class LeadService {
 
     @Transactional
     public void deleteLeads(String id) {
-        Lead lead = findByIdLead(id);
-        leadRepository.delete(lead);
+        Lead lead = leadRepository.findForUpdateById(id)
+                .orElseThrow(() -> new EntityNotFoundException("找不到 Lead：" + id));
+        deletionGuard.lead(id);
+        deletionGuard.delete("LEAD_IN_USE", "此Lead仍有關聯資料，無法刪除。", () -> {
+            leadRepository.delete(lead);
+            leadRepository.flush();
+        });
     }
 }

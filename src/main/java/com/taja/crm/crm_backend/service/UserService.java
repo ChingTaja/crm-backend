@@ -20,6 +20,7 @@ public class UserService {
     private final UserRepository users;
     private final RoleRepository roles;
     private final PasswordResetTokenRepository tokens;
+    private final RefreshTokenRepository refreshTokens;
     private final UserAuthService auth;
 
     private final PermissionService access;
@@ -87,6 +88,7 @@ public class UserService {
             throw new QuoteException(HttpStatus.CONFLICT, "LAST_ADMIN_PROTECTED", "不能刪除最後一位管理員。");
         access.audit(actorId, "UserDeleted", id, user.getRole() == null ? null : user.getRole().getId(), null);
         tokens.deleteByUserId(id);
+        refreshTokens.deleteByUserId(id);
         users.delete(user);
         users.flush();
     }

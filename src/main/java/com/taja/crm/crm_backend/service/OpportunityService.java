@@ -24,6 +24,7 @@ public class OpportunityService {
     private final com.taja.crm.crm_backend.repo.QuoteRepository quotes;
     private final PermissionService access;
     private final java.time.Clock clock;
+    private final DeletionGuard deletionGuard;
 
     public Page<Opportunity> findAllOpportunities(Pageable pageable) {
         return opportunityRepository.findAll(pageable);
@@ -67,7 +68,11 @@ public class OpportunityService {
         requireOpen(opportunity);
         if (quotes.existsForOpportunity(id))
             throw new QuoteException(org.springframework.http.HttpStatus.CONFLICT, "OPPORTUNITY_HAS_QUOTES", "商機已有報價，不可直接刪除。");
-        opportunityRepository.delete(opportunity);
+        deletionGuard.opportunity(id);
+        deletionGuard.delete("OPPORTUNITY_IN_USE", "此商機仍有關聯資料，無法刪除。", () -> {
+            opportunityRepository.delete(opportunity);
+            opportunityRepository.flush();
+        });
     }
     @Transactional
     public Opportunity closeOpportunity(String actorId, String id, @Valid com.taja.crm.crm_backend.dto.opportunity.CloseOpportunityRequest request) {

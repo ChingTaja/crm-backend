@@ -84,22 +84,17 @@ public class QuoteService {
     private void unconverted(Quote quote) {
         if (quote.getOrderId() != null) throw conflict("報價單已轉為訂單，不可再修改。");
     }
-    private void notExpired(QuoteVersion version) {
-        if (version.getTerms().getValidUntil().isBefore(today()))
-            throw error(HttpStatus.CONFLICT, "QUOTE_EXPIRED", "報價單已過期，請建立新版本。");
-    }
     private QuoteResponse response(Quote quote, String actorId) {
         User actor = actor(actorId);
         Set<String> permissions = access.effective(actor.getRole());
-        return QuoteResponse.of(quote, today(), v -> allowedActions(quote, v, actor, permissions));
+        return QuoteResponse.of(quote, v -> allowedActions(quote, v, actor, permissions));
     }
     private List<String> allowedActions(Quote quote, QuoteVersion v, User actor, Set<String> permissions) {
         if (v != latest(quote) || quote.getOrderId() != null) return List.of();
         List<String> result = new ArrayList<>();
         boolean update = permissions.contains("quotes.update");
-        boolean current = !v.getTerms().getValidUntil().isBefore(today());
         if (v.getApproval() == ApprovalStatus.Pending) {
-            if (current && v.getStatus() == QuoteStatus.Draft && actor.getId().equals(v.getReviewerId())
+            if (v.getStatus() == QuoteStatus.Draft && actor.getId().equals(v.getReviewerId())
                     && !actor.getId().equals(v.getCreatedBy()) && !actor.getId().equals(v.getApprovalRequestedBy()))
                 return List.of("approve", "reject-approval");
             return List.of();
@@ -109,9 +104,9 @@ public class QuoteService {
             if (v.getStatus() != QuoteStatus.Accepted) result.add("new-version");
             if (v.getStatus() == QuoteStatus.Draft) {
                 if (v.getApproval() != ApprovalStatus.Approved) result.add("update");
-                if (current && requiresApproval(v) && (v.getApproval() == ApprovalStatus.Required || v.getApproval() == ApprovalStatus.Rejected))
+                if (requiresApproval(v) && (v.getApproval() == ApprovalStatus.Required || v.getApproval() == ApprovalStatus.Rejected))
                     result.add("request-approval");
-                if (current && (!requiresApproval(v) || (v.getApproval() == ApprovalStatus.Approved && !v.isRequiresReapproval())))
+                if ((!requiresApproval(v) || (v.getApproval() == ApprovalStatus.Approved && !v.isRequiresReapproval())))
                     result.add("send");
             }
             if (v.getStatus() == QuoteStatus.Sent) {
@@ -140,8 +135,7 @@ public class QuoteService {
 
     private void requireSubmittable(Quote quote, QuoteVersion v) {
         if (quote.getOrderId() != null || v != latest(quote) || v.getStatus() != QuoteStatus.Draft
-                || !requiresApproval(v) || (v.getApproval() != ApprovalStatus.Required && v.getApproval() != ApprovalStatus.Rejected)
-                || v.getTerms().getValidUntil().isBefore(today()))
+                || !requiresApproval(v) || (v.getApproval() != ApprovalStatus.Required && v.getApproval() != ApprovalStatus.Rejected))
             throw error(HttpStatus.CONFLICT, "QUOTE_INVALID_APPROVAL_STATE", "此版本目前無法提交審核，請重新載入。");
     }
     private boolean assigned(QuoteVersion v, User actor) {
@@ -151,7 +145,7 @@ public class QuoteService {
     private QuoteResponse reviewResponse(Quote quote, User actor) {
         List<QuoteVersion> visible = quote.getVersions().stream().filter(v -> assigned(v, actor)).toList();
         if (visible.isEmpty()) throw error(HttpStatus.NOT_FOUND, "QUOTE_NOT_FOUND", "找不到可查看的報價。");
-        List<QuoteVersionResponse> versions = visible.stream().map(v -> QuoteVersionResponse.of(v, today(),
+        List<QuoteVersionResponse> versions = visible.stream().map(v -> QuoteVersionResponse.of(v,
                 v == latest(quote) && v.getApproval() == ApprovalStatus.Pending
                         ? allowedActions(quote, v, actor, Set.of()) : List.of())).toList();
         // Exclude other versions and events predating the current assignment of each visible version.
@@ -166,7 +160,7 @@ public class QuoteService {
         actor(actorId);
         com.taja.crm.crm_backend.dto.Pagination.of(page, size);
         return PageResponse.fromPage(quotes.findPendingReviews(actorId, PageRequest.of(page, size))
-                .map(q -> QuoteSummaryResponse.of(q, latest(q), today())));
+                .map(q -> QuoteSummaryResponse.of(q, latest(q))));
     }
     public QuoteResponse findMyQuoteReview(String actorId, String id) {
         User actor = actor(actorId);
@@ -180,7 +174,7 @@ public class QuoteService {
         Page<Quote> page = quotes.findVisibleQuotes(actorId, manager(actor), filter,
                 org.springframework.data.domain.PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(),
                         org.springframework.data.domain.Sort.by("id")));
-        return PageResponse.fromPage(page.map(q -> QuoteSummaryResponse.of(q, latest(q), today())));
+        return PageResponse.fromPage(page.map(q -> QuoteSummaryResponse.of(q, latest(q))));
     }
     public QuoteResponse findByIdQuote(String actorId, String id) { return response(load(id, actor(actorId), false), actorId); }
 
@@ -300,10 +294,10 @@ public class QuoteService {
             throw error(HttpStatus.FORBIDDEN, "QUOTE_NOT_ASSIGNED_REVIEWER", "您不是此版本指定的審核人。");
         revision(version, request.expectedRevision());
         if (version != latest(quote) || quote.getOrderId() != null || version.getStatus() != QuoteStatus.Draft
-                || version.getApproval() != ApprovalStatus.Pending || version.getTerms().getValidUntil().isBefore(today()))
+                || version.getApproval() != ApprovalStatus.Pending)
             throw error(HttpStatus.CONFLICT, "QUOTE_INVALID_APPROVAL_STATE", "此版本已無法審核，請重新載入。");
         boolean approved = "approved".equals(request.decision());
-        reason(approved, request.reason()); notExpired(version);
+        reason(approved, request.reason());
         version.setApproval(approved ? ApprovalStatus.Approved : ApprovalStatus.Rejected);
         version.setApprovalBy(actorId); version.setApprovalAt(clock.instant()); version.setApprovalReason(request.reason());
         if (approved) version.setRequiresReapproval(false);
@@ -317,7 +311,7 @@ public class QuoteService {
         User actor = actor(actorId); Quote quote = load(id, actor, true); unconverted(quote);
         QuoteVersion version = version(quote, versionId); revision(version, request.expectedRevision());
         if (version.getStatus() != QuoteStatus.Draft || version.getApproval() == ApprovalStatus.Pending) throw conflict("只有草稿可送出。");
-        notExpired(version);
+
         if (requiresApproval(version) && (version.getApproval() != ApprovalStatus.Approved || version.isRequiresReapproval()))
             throw conflict("報價單尚未通過必要的主管審批。");
         version.setStatus(QuoteStatus.Sent); version.setSentAt(clock.instant()); version.setRevision(version.getRevision() + 1);
@@ -330,7 +324,6 @@ public class QuoteService {
         QuoteVersion version = version(quote, versionId); revision(version, request.expectedRevision());
         if (version.getStatus() != QuoteStatus.Sent) throw conflict("只有已送出的報價可記錄客戶回覆。");
         boolean accepted = "accepted".equals(request.decision()); reason(accepted, request.reason());
-        if (accepted) notExpired(version);
         version.setStatus(accepted ? QuoteStatus.Accepted : QuoteStatus.Rejected);
         version.setDecisionAt(clock.instant()); version.setDecisionBy(actorId); version.setDecisionReason(request.reason());
         version.setRevision(version.getRevision() + 1);
@@ -381,7 +374,7 @@ public class QuoteService {
             }
             terms.setOpportunity(opportunity);
         }
-        terms.setValidUntil(request.getValidUntil()); terms.setPaymentTerms(text(request.getPaymentTerms()));
+        terms.setPaymentTerms(text(request.getPaymentTerms()));
         terms.setDeliveryTerms(text(request.getDeliveryTerms())); terms.setWarranty(text(request.getWarranty())); terms.setNotes(text(request.getNotes()));
         Map<String, QuoteLine> existing = new HashMap<>();
         for (QuoteLine line : version.getLines()) existing.put(line.getId(), line);
