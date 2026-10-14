@@ -37,8 +37,11 @@ public class UserAuthService {
         if (request.password().getBytes(StandardCharsets.UTF_8).length > 72) {
             throw new IllegalArgumentException("密碼 UTF-8 長度不可超過 72 bytes");
         }
-        if (users.existsByUsername(username) || users.existsByEmailIgnoreCase(email)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "帳號或 email 已被使用");
+        if (users.existsByUsername(username)) {
+            throw new QuoteException(HttpStatus.CONFLICT, "USERNAME_ALREADY_REGISTERED", "帳號已被註冊");
+        }
+        if (users.existsByEmailIgnoreCase(email)) {
+            throw new QuoteException(HttpStatus.CONFLICT, "EMAIL_ALREADY_REGISTERED", "email已被註冊");
         }
         var role = request.roleId() == null
                 ? roles.findByCode("USER").orElseThrow(() -> new IllegalStateException("缺少預設 USER 角色"))

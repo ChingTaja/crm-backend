@@ -50,8 +50,11 @@ public class UserService {
         access.manageTarget(actorId, user);
         String username = request.username().strip();
         String email = request.email().strip().toLowerCase(Locale.ROOT);
-        if (users.existsByUsernameAndIdNot(username, id) || users.existsByEmailIgnoreCaseAndIdNot(email, id)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "帳號或 email 已被使用");
+        if (users.existsByUsernameAndIdNot(username, id)) {
+            throw new QuoteException(HttpStatus.CONFLICT, "USERNAME_ALREADY_REGISTERED", "帳號已被註冊");
+        }
+        if (users.existsByEmailIgnoreCaseAndIdNot(email, id)) {
+            throw new QuoteException(HttpStatus.CONFLICT, "EMAIL_ALREADY_REGISTERED", "email已被註冊");
         }
         var role = request.roleId() == null ? user.getRole() : roles.findById(request.roleId())
                 .orElseThrow(() -> new IllegalArgumentException("找不到指定角色"));
