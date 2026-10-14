@@ -20,6 +20,7 @@ public class EntityMetadataService {
                     field("description", "角色說明", "text", "description"),
                     new FieldMetadata("revision", "版本", "number", "revision", true, null, null, null));
             case "orders" -> List.of(
+                    new FieldMetadata("currency", "幣別", "lookup", "currency", true, null, "currencies", "code"),
                     new FieldMetadata("number", "訂單編號", "text", "number", true, null, null, null),
                     new FieldMetadata("name", "訂單名稱", "text", "name", true, null, null, null),
                     new FieldMetadata("customer_id", "客戶", "lookup", "customerId", true, null, "customers", "id"),
@@ -33,6 +34,7 @@ public class EntityMetadataService {
                                 new com.taja.crm.crm_backend.model.Option("Completed", "已完成"),
                                 new com.taja.crm.crm_backend.model.Option("Cancelled", "已取消")), null, null));
             case "quotes" -> List.of(
+                    new FieldMetadata("currency", "幣別", "lookup", "currency", false, null, "currencies", "code"),
                     field("name", "報價名稱", "text", "name"),
                     lookup("customer_id", "客戶", "customerId", "customers"),
                     lookup("opportunity_id", "商機", "opportunityId", "opportunities"),
@@ -43,10 +45,11 @@ public class EntityMetadataService {
             case "products" -> List.of(
                     field("name", "名稱", "text", "name"),
                     field("sku", "產品編號", "text", "sku"),
-                    field("price", "單價（TWD）", "number", "price"),
+                    field("price", "單價", "number", "price"),
                     new FieldMetadata("status", "狀態", "option", "status", false,
                             List.of(new com.taja.crm.crm_backend.model.Option("啟用", "啟用"),
-                                    new com.taja.crm.crm_backend.model.Option("停用", "停用")), null, null));
+                                    new com.taja.crm.crm_backend.model.Option("停用", "停用")), null, null),
+                    new FieldMetadata("currency", "幣別", "lookup", "currency", false, null, "currencies", "code"));
             case "users" -> List.of(
                     field("username", "帳號", "string", "username"),
                     field("email", "電子郵件", "email", "email"),

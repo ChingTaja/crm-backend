@@ -27,11 +27,13 @@ public class PermissionService {
     "opportunities.read", "products.read", "quotes.read", "orders.read");
    case "MANAGER" -> {
     Set<String> result=new TreeSet<>(PermissionCatalog.CODES);
-    result.removeIf(c->c.startsWith("users.")||c.startsWith("roles.")||c.startsWith("permissions."));
+    result.removeIf(c->c.startsWith("currencies.")||c.startsWith("users.")||c.startsWith("roles.")||c.startsWith("permissions."));
     yield result;
    }
    default -> {
-    yield QuotePermissionCompatibility.effective(role);
+    Set<String> result=new TreeSet<>(QuotePermissionCompatibility.effective(role));
+    result.removeIf(c->c.startsWith("currencies."));
+    yield result;
    }
   };
  }

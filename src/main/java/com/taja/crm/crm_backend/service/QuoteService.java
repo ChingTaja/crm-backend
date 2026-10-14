@@ -28,6 +28,7 @@ public class QuoteService {
     private final PermissionService access;
     private final SalesOrderRepository orders;
     private final ProductRepository products;
+    private final CurrencyService currencies;
     private final CustomerRepository customers;
     private final OpportunityRepository opportunities;
     private final UserRepository users;
@@ -249,6 +250,7 @@ public class QuoteService {
         if (source.getStatus() == QuoteStatus.Accepted) throw conflict("已接受的報價不可建立新版本。");
         boundOpportunity(quote);
         QuoteVersion next = new QuoteVersion(); next.setQuote(quote); next.setVersion(source.getVersion() + 1);
+        next.setCurrency(source.getCurrency());
         next.setCreatedAt(clock.instant()); next.setCreatedBy(actorId); next.setTerms(copyTerms(source.getTerms()));
         for (QuoteLine line : source.getLines()) next.getLines().add(copyLine(line, false));
         next.setTotals(calculate(next.getLines()));
@@ -340,6 +342,7 @@ public class QuoteService {
         revision(version, request.expectedRevision());
         if (version.getStatus() != QuoteStatus.Accepted) throw conflict("只有已接受的報價可以轉訂單。");
         SalesOrder order = new SalesOrder(); order.setQuote(quote); order.setQuoteVersionId(versionId);
+        order.setCurrency(version.getCurrency());
         order.setCreatedAt(clock.instant()); order.setCreatedBy(actorId); order.setTerms(copyTerms(version.getTerms()));
         QuoteTotals totals = new QuoteTotals(); BeanUtils.copyProperties(version.getTotals(), totals); order.setTotals(totals);
         for (QuoteLine line : version.getLines()) order.getLines().add(copyLine(line, true));
@@ -358,6 +361,8 @@ public class QuoteService {
     }
 
     private void apply(QuoteVersion version, CreateQuoteRequest request, boolean create) {
+        boolean changedCurrency = !Objects.equals(version.getCurrency(), request.getCurrency());
+        currencies.require(request.getCurrency(), create || changedCurrency);
         QuoteTerms terms = new QuoteTerms(); terms.setName(request.getName().strip());
         if (terms.getName().isEmpty()) throw error(HttpStatus.BAD_REQUEST, "QUOTE_INVALID_NAME", "報價名稱不可空白。");
         terms.setCustomer(customers.findById(request.getCustomerId()).orElseThrow(() -> error(HttpStatus.BAD_REQUEST, "QUOTE_INVALID_CUSTOMER", "所屬客戶不存在。")));
@@ -386,16 +391,21 @@ public class QuoteService {
                     throw error(HttpStatus.BAD_REQUEST, "QUOTE_INVALID_LINE_ID", "明細 ID 不屬於此版本或重複。");
                 old = existing.get(line.id());
             }
+            Product selected = products.findById(line.productId()).orElseThrow(() -> error(HttpStatus.BAD_REQUEST, "QUOTE_INVALID_PRODUCT", "產品不存在。"));
+            if (!Objects.equals(selected.getCurrency(), request.getCurrency()))
+                throw error(HttpStatus.valueOf(422), "PRODUCT_CURRENCY_MISMATCH", "商品幣別與報價不同，productId：" + line.productId());
             QuoteLine item;
             if (old != null && old.getProduct().getId().equals(line.productId())) item = copyLine(old, true);
             else {
-                Product product = products.findById(line.productId()).orElseThrow(() -> error(HttpStatus.BAD_REQUEST, "QUOTE_INVALID_PRODUCT", "產品不存在。"));
+                currencies.require(request.getCurrency(), true);
+                Product product = selected;
                 if (!"啟用".equals(product.getStatus())) throw error(HttpStatus.BAD_REQUEST, "QUOTE_INACTIVE_PRODUCT", "停用產品不可新增至報價。");
                 item = new QuoteLine(); item.setProduct(product); item.setProductName(product.getName()); item.setSku(product.getSku()); item.setCatalogPrice(product.getPrice());
                 if (old != null) item.setId(old.getId());
             }
             item.setQuantity(line.quantity()); item.setUnitPrice(line.unitPrice()); item.setDiscountPercent(line.discountPercent()); item.setTaxPercent(line.taxPercent()); next.add(item);
         }
+        version.setCurrency(request.getCurrency());
         version.setTerms(terms); version.getLines().clear(); version.getLines().addAll(next);
         version.setTotals(calculate(next)); version.setApproval(requiresApproval(version) ? ApprovalStatus.Required : ApprovalStatus.NotRequired);
         if (version.getApproval() == ApprovalStatus.NotRequired) version.setRequiresReapproval(false);

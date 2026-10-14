@@ -10,7 +10,7 @@ public final class PermissionCatalog {
   List<PermissionResponse> result=new ArrayList<>();
   Map<String,String> groups=new LinkedHashMap<>();
   groups.put("customers","客戶");groups.put("contacts","聯絡人");groups.put("opportunities","商機");
-  groups.put("products","產品");groups.put("leads","潛在客戶");groups.put("quotes","報價");
+  groups.put("currencies","幣別");groups.put("products","產品");groups.put("leads","潛在客戶");groups.put("quotes","報價");
   groups.put("orders","訂單");groups.put("users","帳號");groups.put("roles","角色");groups.put("permissions","權限清單");
   groups.forEach((entity,label)->{
    List<String> actions=switch(entity) {

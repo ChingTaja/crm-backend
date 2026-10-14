@@ -20,8 +20,20 @@ import org.springframework.web.server.ResponseStatusException;
 @Transactional(readOnly = true)
 public class ProductService {
     private final ProductRepository products;
+    private final CurrencyService currencies;
 
-    public Page<Product> findAllProducts(Pageable pageable) { return products.findAll(pageable); }
+    public Page<Product> findAllProducts(Pageable pageable) { return findAllProducts(pageable, null, null); }
+    public Page<Product> findAllProducts(Pageable pageable, String currency, String status) {
+        if (currency != null) currencies.require(currency, false);
+        if (status != null && !java.util.Set.of("啟用", "停用").contains(status))
+            throw new IllegalArgumentException("產品狀態必須為啟用或停用");
+        return products.findAll((root, query, cb) -> {
+            var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
+            if (currency != null) predicates.add(cb.equal(root.get("currency"), currency));
+            if (status != null) predicates.add(cb.equal(root.get("status"), status));
+            return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        }, org.springframework.data.domain.PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by("id")));
+    }
     public Product findByIdProduct(String id) {
         return products.findById(id).orElseThrow(() -> new EntityNotFoundException("找不到 Product：" + id));
     }
@@ -30,6 +42,7 @@ public class ProductService {
     public Product createProducts(@NotNull @Valid Product product) {
         if (product.getId() != null) throw new IllegalArgumentException("新增產品不可指定 id");
         normalize(product);
+        currencies.require(product.getCurrency(), true);
         if (products.existsBySkuIgnoreCase(product.getSku())) throw duplicate();
         return products.saveAndFlush(product);
     }

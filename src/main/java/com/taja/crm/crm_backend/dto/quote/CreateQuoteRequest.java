@@ -6,6 +6,8 @@ import lombok.Getter;
 import lombok.Setter;
 @Getter @Setter
 public class CreateQuoteRequest {
+    @io.swagger.v3.oas.annotations.media.Schema(requiredMode = io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED, example = "TWD")
+    private String currency;
     @NotBlank @Size(max = 255) private String name;
     @NotBlank private String customerId;
     @NotBlank private String opportunityId;

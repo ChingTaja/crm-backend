@@ -34,8 +34,10 @@ public class ProductController {
     @GetMapping
     public PageResponse<ProductResponse> findAllProducts(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return PageResponse.fromPage(productService.findAllProducts(Pagination.of(page, size)).map(ProductResponse::fromEntity));
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String currency,
+            @RequestParam(required = false) String status) {
+        return PageResponse.fromPage(productService.findAllProducts(Pagination.of(page, size), currency, status).map(ProductResponse::fromEntity));
     }
 
     @GetMapping("/{id}")
