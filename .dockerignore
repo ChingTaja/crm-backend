@@ -1,0 +1,22 @@
+# Allow only application/build inputs into the Docker context.
+**
+!Dockerfile
+!.dockerignore
+!pom.xml
+!mvnw
+!.mvn/
+!.mvn/**
+!src/
+!src/main/
+!src/main/**
+
+# Keep local configuration, credentials and private keys out of the image.
+**/.env
+**/.env.*
+**/*.key
+**/*.pem
+**/*.p12
+**/*.pfx
+**/*.jks
+**/application-local.*
+**/application-dev.*
