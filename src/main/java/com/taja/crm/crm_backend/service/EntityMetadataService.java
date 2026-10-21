@@ -48,8 +48,7 @@ public class EntityMetadataService {
                     field("price", "單價", "number", "price"),
                     new FieldMetadata("status", "狀態", "option", "status", false,
                             List.of(new com.taja.crm.crm_backend.model.Option("啟用", "啟用"),
-                                    new com.taja.crm.crm_backend.model.Option("停用", "停用")), null, null),
-                    new FieldMetadata("currency", "幣別", "lookup", "currency", false, null, "currencies", "code"));
+                                    new com.taja.crm.crm_backend.model.Option("停用", "停用")), null, null));
             case "users" -> List.of(
                     field("username", "帳號", "string", "username"),
                     field("email", "電子郵件", "email", "email"),

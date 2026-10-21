@@ -44,8 +44,8 @@ public class OpportunityController {
     }
 
     @PostMapping
-    public ResponseEntity<OpportunityResponse> createOpportunities(@Valid @RequestBody CreateOpportunityRequest request) {
-        Opportunity created = opportunityService.createOpportunities(request.toEntity());
+    public ResponseEntity<OpportunityResponse> createOpportunities(java.security.Principal actor, @Valid @RequestBody CreateOpportunityRequest request) {
+        Opportunity created = opportunityService.createOpportunities(actor.getName(), request.toEntity());
         return ResponseEntity.status(HttpStatus.CREATED).body(OpportunityResponse.fromEntity(created));
     }
 

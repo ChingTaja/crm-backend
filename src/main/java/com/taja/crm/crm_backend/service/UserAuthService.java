@@ -20,10 +20,12 @@ public class UserAuthService {
     private final RoleRepository roles;
     private final String dummyHash;
     private final PermissionService access;
+    private final ApiRateLimiter limiter;
 
-    public UserAuthService(UserRepository users, PasswordEncoder encoder, RoleRepository roles, PermissionService access) {
+    public UserAuthService(UserRepository users, PasswordEncoder encoder, RoleRepository roles, PermissionService access, ApiRateLimiter limiter) {
         this.users = users;
         this.access = access;
+        this.limiter = limiter;
         this.roles = roles;
         this.encoder = encoder;
         this.dummyHash = encoder.encode(java.util.UUID.randomUUID().toString());
@@ -64,11 +66,15 @@ public class UserAuthService {
 
     @Transactional
     public UserResponse login(LoginRequest request) {
+        limiter.acquire(ApiRateLimiter.Scope.LOGIN_ACCOUNT, request.username().strip());
         var user = users.findForLoginByUsername(request.username().strip());
         boolean matches = request.password().getBytes(StandardCharsets.UTF_8).length <= 72
                 && encoder.matches(request.password(), user.map(User::getPasswordHash).orElse(dummyHash));
-        if (user.isEmpty() || !matches || !user.get().isEnabled()) {
+        if (user.isEmpty() || !matches) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "帳號或密碼錯誤");
+        }
+        if (!user.orElseThrow().isEnabled()) {
+            throw new QuoteException(HttpStatus.UNAUTHORIZED, "ACCOUNT_DISABLED", "帳號遭停用 請聯繫管理員");
         }
         return UserResponse.fromEntity(user.orElseThrow());
     }

@@ -9,7 +9,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-@com.fasterxml.jackson.annotation.JsonIgnoreProperties("stage")
+@com.fasterxml.jackson.annotation.JsonIgnoreProperties({"stage", "createdById"})
 public class UpdateOpportunityRequest {
     @NotBlank @Size(max = 255)
     private String name;

@@ -14,7 +14,7 @@ public class LeadQualificationController {
     private final LeadQualificationService qualificationService;
 
     @PostMapping("/{id}/qualification")
-    public Lead qualifyLead(@PathVariable String id, @Valid @RequestBody QualifyLeadRequest request) {
-        return qualificationService.qualifyLead(id, request);
+    public Lead qualifyLead(java.security.Principal actor, @PathVariable String id, @Valid @RequestBody QualifyLeadRequest request) {
+        return qualificationService.qualifyLead(actor.getName(), id, request);
     }
 }

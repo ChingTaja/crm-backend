@@ -17,6 +17,9 @@ public class Opportunity {
     @NotBlank @Column(nullable = false)
     private String name;
     private String owner;
+    // Nullable only for historical rows awaiting a verified creator backfill.
+    @Column(updatable = false)
+    private String createdById;
     @NotBlank @Column(nullable = false)
     private String customerId;
     // 保留既有 Lead 轉換的聯絡人關聯，不對外列入商機 DTO。

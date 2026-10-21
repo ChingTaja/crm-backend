@@ -66,9 +66,10 @@ public class JwtSecurityConfig {
 
     @Bean
     @org.springframework.core.annotation.Order(2)
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, com.taja.crm.crm_backend.service.ApiRateLimiter limiter) throws Exception {
         return http
                 .cors(cors -> {})
+                .addFilterAfter(new RateLimitIpFilter(limiter), org.springframework.web.filter.CorsFilter.class)
                 .exceptionHandling(errors -> errors.authenticationEntryPoint((request,response,error) -> SecurityProblem.unauthorized(response,error)))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

@@ -36,10 +36,12 @@ public class OpportunityService {
     }
 
     @Transactional
-    public Opportunity createOpportunities(@NotNull @Valid Opportunity opportunity) {
+    public Opportunity createOpportunities(String actorId, @NotNull @Valid Opportunity opportunity) {
         if (opportunity.getId() != null) {
             throw new IllegalArgumentException("新增 Opportunity 時不可指定 id");
         }
+        access.require(actorId, "opportunities.create");
+        opportunity.setCreatedById(access.actor(actorId).getId());
         opportunity.setStage("需求討論中");
         validateReferences(opportunity);
         return opportunityRepository.save(opportunity);

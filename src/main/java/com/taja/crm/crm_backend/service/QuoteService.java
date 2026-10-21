@@ -47,18 +47,41 @@ public class QuoteService {
     private boolean manager(User user) {
         return user.getRole() != null && Set.of("ADMIN", "MANAGER").contains(user.getRole().getCode());
     }
-    private boolean manages(Quote quote, User actor) {
-        return manager(actor) || quote.getCreatedBy().equals(actor.getId());
+    private boolean canRead(Quote quote, User actor) {
+        return manager(actor) || quote.getCreatedBy().equals(actor.getId()) || ownsOpportunity(quote, actor);
     }
     private void authorize(Quote quote, User actor) {
-        if (!manages(quote, actor))
+        if (!canRead(quote, actor))
             throw error(HttpStatus.FORBIDDEN, "QUOTE_FORBIDDEN", "您沒有操作此報價單的權限。");
     }
     private Quote load(String id, User actor, boolean lock) {
         Quote quote = (lock ? quotes.findForUpdateById(id) : quotes.findById(id))
                 .orElseThrow(() -> error(HttpStatus.NOT_FOUND, "QUOTE_NOT_FOUND", "找不到報價單。"));
-        authorize(quote, actor);
+        if (lock) requireOpportunityCreator(quote, actor);
+        else authorize(quote, actor);
         return quote;
+    }
+    private boolean ownsOpportunity(Quote quote, User actor) {
+        if (quote.getVersions().isEmpty()) return false;
+        String bound = null;
+        for (QuoteVersion version : quote.getVersions()) {
+            Opportunity opportunity = version.getTerms().getOpportunity();
+            if (opportunity == null || !actor.getId().equals(opportunity.getCreatedById())) return false;
+            if (bound != null && !bound.equals(opportunity.getId())) return false;
+            bound = opportunity.getId();
+        }
+        return true;
+    }
+    private void requireOpportunityCreator(Opportunity opportunity, User actor) {
+        if (opportunity.getCreatedById() == null || opportunity.getCreatedById().isBlank())
+            throw error(HttpStatus.FORBIDDEN, "OPPORTUNITY_CREATOR_UNCONFIRMED", "商機建立者尚未確認，請聯絡管理員依可信紀錄回填後再操作報價。");
+        if (!actor.getId().equals(opportunity.getCreatedById()))
+            throw error(HttpStatus.FORBIDDEN, "QUOTE_OPPORTUNITY_CREATOR_REQUIRED", "僅所屬商機的建立者可調整報價單，管理員亦不可代為操作。");
+    }
+    private void requireOpportunityCreator(Quote quote, User actor) {
+        String opportunityId = boundOpportunity(quote);
+        requireOpportunityCreator(opportunities.findById(opportunityId).orElseThrow(() ->
+                error(HttpStatus.NOT_FOUND, "QUOTE_INVALID_OPPORTUNITY", "商機不存在。")), actor);
     }
     private String boundOpportunity(Quote quote) {
         Set<String> ids = new HashSet<>();
@@ -100,11 +123,11 @@ public class QuoteService {
                 return List.of("approve", "reject-approval");
             return List.of();
         }
-        if (!manages(quote, actor)) return List.of();
+        if (!ownsOpportunity(quote, actor)) return List.of();
         if (update) {
             if (v.getStatus() != QuoteStatus.Accepted) result.add("new-version");
             if (v.getStatus() == QuoteStatus.Draft) {
-                if (v.getApproval() != ApprovalStatus.Approved) result.add("update");
+                if (permissions.contains("opportunities.read") && v.getApproval() != ApprovalStatus.Approved) result.add("update");
                 if (requiresApproval(v) && (v.getApproval() == ApprovalStatus.Required || v.getApproval() == ApprovalStatus.Rejected))
                     result.add("request-approval");
                 if ((!requiresApproval(v) || (v.getApproval() == ApprovalStatus.Approved && !v.isRequiresReapproval())))
@@ -115,7 +138,7 @@ public class QuoteService {
             }
             if (v.getStatus() == QuoteStatus.Accepted) result.add("convert-to-order");
         }
-        if (permissions.contains("quotes.delete") && quote.getVersions().stream().allMatch(old ->
+        if (permissions.contains("quotes.delete") && !"需求成交".equals(v.getTerms().getOpportunity().getStage()) && quote.getVersions().stream().allMatch(old ->
                 old.getStatus() == QuoteStatus.Draft && old.getSentAt() == null && old.getApproval() != ApprovalStatus.Pending))
             result.add("delete");
         return List.copyOf(result);
@@ -126,6 +149,7 @@ public class QuoteService {
     public List<ReviewerOption> reviewerOptions(String actorId, String id, String keyword) {
         access.require(actorId, "quotes.update");
         User submitter = actor(actorId); Quote quote = load(id, submitter, false);
+        requireOpportunityCreator(quote, submitter);
         requireSubmittable(quote, latest(quote));
         String term = keyword == null ? "" : keyword.strip().toLowerCase(Locale.ROOT);
         return users.findAll().stream().filter(u -> eligibleReviewer(u, submitter, latest(quote)))
@@ -181,6 +205,7 @@ public class QuoteService {
 
     @Transactional
     public QuoteResponse createQuotes(String actorId, @NotNull @Valid CreateQuoteRequest request) {
+        access.require(actorId, "quotes.create");
         User actor = actor(actorId);
         access.require(actorId, "opportunities.read");
         Quote quote = new Quote(); quote.setCreatedBy(actorId);
@@ -188,7 +213,7 @@ public class QuoteService {
         quote.setNumber("QT-" + today().format(DateTimeFormatter.ofPattern("yyyyMM")) + "-" + String.format(Locale.ROOT, "%04d", sequence));
         QuoteVersion version = new QuoteVersion(); version.setQuote(quote); version.setVersion(1);
         version.setCreatedAt(clock.instant()); version.setCreatedBy(actorId);
-        apply(version, request, true);
+        apply(version, request, true, actor);
         quote.getVersions().add(version);
         audit(quote, version, actor, "CREATED", "建立報價單。");
         quotes.saveAndFlush(quote);
@@ -197,6 +222,7 @@ public class QuoteService {
 
     @Transactional
     public QuoteResponse updateQuotes(String actorId, String id, String versionId, @NotNull @Valid UpdateQuoteRequest request) {
+        access.require(actorId, "quotes.update");
         User actor = actor(actorId); Quote quote = load(id, actor, true); unconverted(quote);
         QuoteVersion version = version(quote, versionId); revision(version, request.getExpectedRevision());
         if (version.getStatus() != QuoteStatus.Draft || version.getApproval() == ApprovalStatus.Pending || version.getApproval() == ApprovalStatus.Approved)
@@ -205,7 +231,7 @@ public class QuoteService {
         String bound = boundOpportunity(quote);
         if (!bound.equals(request.getOpportunityId()))
             throw error(HttpStatus.CONFLICT, "QUOTE_OPPORTUNITY_IMMUTABLE", "報價建立後不可更換或清空所屬商機。");
-        apply(version, request, false);
+        apply(version, request, false, actor);
         version.setRevision(version.getRevision() + 1);
         audit(quote, version, actor, "UPDATED", "更新報價內容與明細。");
         quotes.flush(); return response(quote, actorId);
@@ -244,6 +270,7 @@ public class QuoteService {
 
     @Transactional
     public QuoteResponse newVersion(String actorId, String id, String versionId, @NotNull @Valid QuoteActionRequest request) {
+        access.require(actorId, "quotes.update");
         User actor = actor(actorId); Quote quote = load(id, actor, true); unconverted(quote);
         QuoteVersion source = version(quote, versionId); revision(source, request.expectedRevision());
         if (source.getApproval() == ApprovalStatus.Pending) throw conflict("審批中不可建立新版本。");
@@ -265,12 +292,12 @@ public class QuoteService {
 
     @Transactional
     public QuoteResponse requestApproval(String actorId, String id, String versionId, @NotNull @Valid RequestQuoteApprovalRequest request) {
+        access.require(actorId, "quotes.update");
         User actor = actor(actorId); Quote quote = load(id, actor, true);
         QuoteVersion version = quote.getVersions().stream().filter(v -> v.getId().equals(versionId)).findFirst()
                 .orElseThrow(() -> error(HttpStatus.NOT_FOUND, "QUOTE_NOT_FOUND", "找不到報價版本。"));
         revision(version, request.expectedRevision());
         requireSubmittable(quote, version);
-        access.require(actorId, "quotes.update");
         User reviewer = users.findById(request.reviewerId())
                 .orElseThrow(() -> error(HttpStatus.BAD_REQUEST, "QUOTE_REVIEWER_INVALID", "指定審核人不存在。"));
         if (!eligibleReviewer(reviewer, actor, version))
@@ -310,6 +337,7 @@ public class QuoteService {
 
     @Transactional
     public QuoteResponse send(String actorId, String id, String versionId, @NotNull @Valid QuoteActionRequest request) {
+        access.require(actorId, "quotes.update");
         User actor = actor(actorId); Quote quote = load(id, actor, true); unconverted(quote);
         QuoteVersion version = version(quote, versionId); revision(version, request.expectedRevision());
         if (version.getStatus() != QuoteStatus.Draft || version.getApproval() == ApprovalStatus.Pending) throw conflict("只有草稿可送出。");
@@ -322,6 +350,7 @@ public class QuoteService {
 
     @Transactional
     public QuoteResponse decision(String actorId, String id, String versionId, @NotNull @Valid DecideQuoteRequest request) {
+        access.require(actorId, "quotes.update");
         User actor = actor(actorId); Quote quote = load(id, actor, true); unconverted(quote);
         QuoteVersion version = version(quote, versionId); revision(version, request.expectedRevision());
         if (version.getStatus() != QuoteStatus.Sent) throw conflict("只有已送出的報價可記錄客戶回覆。");
@@ -335,6 +364,7 @@ public class QuoteService {
 
     @Transactional
     public ConvertQuoteToOrderResponse convertToOrder(String actorId, String id, String versionId, @NotNull @Valid QuoteActionRequest request) {
+        access.require(actorId, "quotes.update");
         User actor = actor(actorId); Quote quote = load(id, actor, true);
         QuoteVersion version = version(quote, versionId);
         // 已轉單的同版本重試可使用原 revision，回傳同一 orderId。
@@ -360,7 +390,7 @@ public class QuoteService {
         quotes.flush(); return new ConvertQuoteToOrderResponse(order.getId(), response(quote, actorId));
     }
 
-    private void apply(QuoteVersion version, CreateQuoteRequest request, boolean create) {
+    private void apply(QuoteVersion version, CreateQuoteRequest request, boolean create, User actor) {
         boolean changedCurrency = !Objects.equals(version.getCurrency(), request.getCurrency());
         currencies.require(request.getCurrency(), create || changedCurrency);
         QuoteTerms terms = new QuoteTerms(); terms.setName(request.getName().strip());
@@ -370,6 +400,7 @@ public class QuoteService {
             throw error(HttpStatus.BAD_REQUEST, "QUOTE_INVALID_OPPORTUNITY", "請指定所屬商機。");
         {
             Opportunity opportunity = opportunities.findForUpdateById(request.getOpportunityId()).orElseThrow(() -> error(HttpStatus.BAD_REQUEST, "QUOTE_INVALID_OPPORTUNITY", "商機不存在。"));
+            requireOpportunityCreator(opportunity, actor);
             if (!opportunity.getCustomerId().equals(request.getCustomerId())) throw error(HttpStatus.BAD_REQUEST, "QUOTE_INVALID_OPPORTUNITY", "商機不屬於所選客戶。");
             if (create) {
                 Boolean closed = jdbc.queryForObject("select (closed_at is not null or stage in ('需求成交', '失單')) from opportunities where id = ? for update",
@@ -392,8 +423,6 @@ public class QuoteService {
                 old = existing.get(line.id());
             }
             Product selected = products.findById(line.productId()).orElseThrow(() -> error(HttpStatus.BAD_REQUEST, "QUOTE_INVALID_PRODUCT", "產品不存在。"));
-            if (!Objects.equals(selected.getCurrency(), request.getCurrency()))
-                throw error(HttpStatus.valueOf(422), "PRODUCT_CURRENCY_MISMATCH", "商品幣別與報價不同，productId：" + line.productId());
             QuoteLine item;
             if (old != null && old.getProduct().getId().equals(line.productId())) item = copyLine(old, true);
             else {

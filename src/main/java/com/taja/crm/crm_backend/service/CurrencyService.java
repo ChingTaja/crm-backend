@@ -55,8 +55,8 @@ public class CurrencyService {
         Currency currency = find(code);
         currencies.flush();
         boolean referenced = Boolean.TRUE.equals(jdbc.queryForObject(
-                "select exists(select 1 from products where currency=?) or exists(select 1 from quote_versions where currency=?) or exists(select 1 from sales_orders where currency=?)",
-                Boolean.class, code, code, code));
+                "select exists(select 1 from quote_versions where currency=?) or exists(select 1 from sales_orders where currency=?)",
+                Boolean.class, code, code));
         if (referenced) throw inUse();
         try {
             currencies.delete(currency);
@@ -73,7 +73,7 @@ public class CurrencyService {
     }
 
     private QuoteException inUse() {
-        return new QuoteException(HttpStatus.CONFLICT, "CURRENCY_IN_USE", "幣別已被商品或交易引用，不可刪除，請改以停用處理。");
+        return new QuoteException(HttpStatus.CONFLICT, "CURRENCY_IN_USE", "幣別已被交易引用，不可刪除，請改以停用處理。");
     }
 
     public Currency require(String code, boolean requireActive) {

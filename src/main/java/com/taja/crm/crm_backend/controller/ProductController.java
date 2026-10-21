@@ -35,9 +35,8 @@ public class ProductController {
     public PageResponse<ProductResponse> findAllProducts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) String currency,
             @RequestParam(required = false) String status) {
-        return PageResponse.fromPage(productService.findAllProducts(Pagination.of(page, size), currency, status).map(ProductResponse::fromEntity));
+        return PageResponse.fromPage(productService.findAllProducts(Pagination.of(page, size), status).map(ProductResponse::fromEntity));
     }
 
     @GetMapping("/{id}")

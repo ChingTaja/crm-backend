@@ -18,15 +18,11 @@ public class CreateProductRequest {
     @NotBlank @Pattern(regexp = "啟用|停用")
     private String status = "啟用";
 
-    @io.swagger.v3.oas.annotations.media.Schema(requiredMode = io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED, example = "TWD")
-    private String currency;
-
     public Product toEntity() {
         Product product = new Product();
         product.setName(name);
         product.setSku(sku);
         product.setPrice(price);
-        product.setCurrency(currency);
         product.setStatus(status);
         return product;
     }

@@ -27,6 +27,6 @@ public final class SecurityProblem {
         response.setStatus(status);response.setContentType("application/problem+json");response.setCharacterEncoding("UTF-8");
         response.setHeader("Cache-Control","no-store");
         // All supplied codes/details are fixed server strings, never exception text or user input.
-        response.getWriter().write("{\"status\":"+status+",\"title\":\""+(status==401?"Unauthorized":"Forbidden")+"\",\"code\":\""+code+"\",\"detail\":\""+detail+"\"}");
+        response.getWriter().write("{\"status\":"+status+",\"title\":\""+org.springframework.http.HttpStatus.valueOf(status).getReasonPhrase()+"\",\"code\":\""+code+"\",\"detail\":\""+detail+"\"}");
     }
 }

@@ -18,9 +18,12 @@ public class LeadQualificationService {
     private final ContactRepository contacts;
     private final OpportunityRepository opportunities;
     private final Clock clock;
+    private final PermissionService access;
 
     @Transactional
-    public Lead qualifyLead(String id, QualifyLeadRequest request) {
+    public Lead qualifyLead(String actorId, String id, QualifyLeadRequest request) {
+        access.require(actorId, "leads.qualify");
+        String creatorId = access.actor(actorId).getId();
         boolean approved = "approved".equals(request.decision());
         if (!approved && !"rejected".equals(request.decision())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "無效的審核結果");
@@ -64,6 +67,7 @@ public class LeadQualificationService {
 
             if ("customer_contact_opportunity".equals(request.conversionType())) {
                 Opportunity opportunity = new Opportunity();
+                opportunity.setCreatedById(creatorId);
                 opportunity.setName(customer.getName() + " 商機");
                 opportunity.setOwner(lead.getOwner());
                 opportunity.setCustomerId(customer.getId());

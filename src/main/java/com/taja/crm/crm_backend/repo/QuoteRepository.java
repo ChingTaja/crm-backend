@@ -9,8 +9,8 @@ public interface QuoteRepository extends JpaRepository<Quote, String> {
     @Query("select (count(v) > 0) from QuoteVersion v where v.terms.opportunity.id = :opportunityId")
     boolean existsForOpportunity(String opportunityId);
     @Query("""
-        select q from Quote q join q.versions v
-        where (:allVisible = true or q.createdBy = :actorId)
+        select q from Quote q join q.versions v left join v.terms.opportunity o
+        where (:allVisible = true or q.createdBy = :actorId or o.createdById = :actorId)
           and (:opportunityId is null or v.terms.opportunity.id = :opportunityId)
           and v.version = (select max(v2.version) from QuoteVersion v2 where v2.quote = q)
         """)

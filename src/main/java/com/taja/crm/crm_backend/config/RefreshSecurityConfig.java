@@ -25,11 +25,12 @@ public class RefreshSecurityConfig {
     @Bean public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cors=new CorsConfiguration();cors.setAllowedOrigins(origins);cors.setAllowCredentials(true);
         cors.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
-        cors.setAllowedHeaders(List.of("Authorization","Content-Type","X-CSRF-TOKEN"));
+        cors.setAllowedHeaders(List.of("Authorization","Content-Type","X-CSRF-TOKEN","Idempotency-Key"));
+        cors.setExposedHeaders(List.of("Idempotency-Key", "Retry-After"));
         UrlBasedCorsConfigurationSource source=new UrlBasedCorsConfigurationSource();source.registerCorsConfiguration("/**",cors);return source;
     }
     @Bean @Order(1)
-    public SecurityFilterChain cookieAuthChain(HttpSecurity http,AuthCookies cookies) throws Exception {
+    public SecurityFilterChain cookieAuthChain(HttpSecurity http,AuthCookies cookies, com.taja.crm.crm_backend.service.ApiRateLimiter limiter) throws Exception {
         CookieCsrfTokenRepository repository=new CookieCsrfTokenRepository();
         repository.setCookieName(AuthCookies.CSRF);repository.setHeaderName("X-CSRF-TOKEN");
         repository.setCookieCustomizer(builder->builder.httpOnly(true).secure(cookies.secure()).sameSite(cookies.sameSite()).path(AuthCookies.PATH));
@@ -40,6 +41,7 @@ public class RefreshSecurityConfig {
         };
         return http.securityMatcher("/api/auth/login","/api/auth/csrf","/api/auth/refresh","/api/auth/logout")
             .cors(cors->{})
+            .addFilterAfter(new RateLimitIpFilter(limiter),org.springframework.web.filter.CorsFilter.class)
             .sessionManagement(session->session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .requestCache(cache->cache.disable()).logout(logout->logout.disable())
             .csrf(csrf->csrf.csrfTokenRepository(repository).csrfTokenRequestHandler(handler))

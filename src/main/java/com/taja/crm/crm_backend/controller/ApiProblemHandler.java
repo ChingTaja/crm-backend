@@ -8,6 +8,13 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.dao.DataIntegrityViolationException;
 @RestControllerAdvice
 public class ApiProblemHandler {
+ @ExceptionHandler(com.taja.crm.crm_backend.service.RateLimitExceeded.class)
+ public ResponseEntity<ProblemDetail> rateLimited(com.taja.crm.crm_backend.service.RateLimitExceeded e) {
+  var p=ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS,e.getMessage());
+  p.setProperty("code",com.taja.crm.crm_backend.service.RateLimitExceeded.CODE);
+  return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).header("Retry-After",Long.toString(e.getRetryAfterSeconds()))
+   .header("Cache-Control","no-store").body(p);
+ }
  @ExceptionHandler(QuoteException.class) public ProblemDetail denied(QuoteException e) {
   var p=ProblemDetail.forStatusAndDetail(e.getStatus(),e.getMessage());p.setProperty("code",e.getCode());return p;
  }

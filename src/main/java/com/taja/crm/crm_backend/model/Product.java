@@ -20,8 +20,6 @@ public class Product {
     @NotNull @DecimalMin("0") @Digits(integer = 17, fraction = 2)
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal price;
-    @Column(length = 3)
-    private String currency;
     @NotBlank @Pattern(regexp = "啟用|停用") @Column(nullable = false)
     private String status = "啟用";
 }

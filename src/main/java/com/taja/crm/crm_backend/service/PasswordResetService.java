@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class PasswordResetService {
     private final UserRepository users;
+    private final ApiRateLimiter limiter;
     private final PasswordResetTokenRepository tokens;
     private final PasswordResetMailService mail;
     private final PasswordEncoder encoder;
@@ -28,6 +29,7 @@ public class PasswordResetService {
 
     @Transactional
     public void forgotPassword(String email) {
+        limiter.acquire(ApiRateLimiter.Scope.FORGOT_EMAIL, email.strip().toLowerCase(java.util.Locale.ROOT));
         users.findForResetByEmail(email.strip()).ifPresent(user -> {
             byte[] bytes = new byte[32];
             random.nextBytes(bytes);

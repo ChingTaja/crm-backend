@@ -33,6 +33,19 @@ public class OpenApiConfig {
      operation.setDescription("功能權限：quotes." + action + "。仍驗證資料範圍、狀態、revision、自我審批限制與其他業務規則。");
     });
    });
+   api.getPaths().forEach((path, item) -> {
+    if(!path.startsWith("/api/")) return;
+    item.readOperations().forEach(operation -> {
+     var schema=new io.swagger.v3.oas.models.media.ObjectSchema()
+      .addProperty("status",new io.swagger.v3.oas.models.media.IntegerSchema().example(429))
+      .addProperty("code",new io.swagger.v3.oas.models.media.StringSchema().example("RATE_LIMIT_EXCEEDED"))
+      .addProperty("detail",new io.swagger.v3.oas.models.media.StringSchema().example("操作過於頻繁，請稍後再試。"));
+     operation.getResponses().addApiResponse("429",new io.swagger.v3.oas.models.responses.ApiResponse()
+      .description("請求頻率超過限額；等待 Retry-After 秒後再試。登入與忘記密碼另有帳號／Email 額度。")
+      .addHeaderObject("Retry-After",new io.swagger.v3.oas.models.headers.Header().description("至少等待的秒數").schema(new io.swagger.v3.oas.models.media.IntegerSchema().minimum(java.math.BigDecimal.ONE)))
+      .content(new io.swagger.v3.oas.models.media.Content().addMediaType("application/problem+json",new io.swagger.v3.oas.models.media.MediaType().schema(schema))));
+    });
+   });
    var csrfPath=api.getPaths().get("/api/auth/csrf");
    if(csrfPath!=null) csrfPath.getGet().setSecurity(List.of());
    for(String action:List.of("refresh","logout","login")) {
