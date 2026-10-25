@@ -1,5 +1,4 @@
--- Existing product currency must be assigned from confirmed business data separately.
--- Never infer currency from price or overwrite a stored transaction currency.
+-- Currency belongs to quote versions and orders; never rewrite transaction snapshots.
 DO $$
 BEGIN
     PERFORM pg_advisory_xact_lock(823604912);
@@ -11,8 +10,12 @@ BEGIN
         ALTER TABLE currencies ADD CONSTRAINT currency_code_format CHECK (code ~ '^[A-Z]{3}$');
         ALTER TABLE currencies ADD CONSTRAINT currency_supported_precision CHECK (fraction_digits = 2);
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_products_currency') THEN
-        ALTER TABLE products ADD CONSTRAINT fk_products_currency FOREIGN KEY (currency) REFERENCES currencies(code);
+    -- Legacy column is retained as nullable, unused data. New schemas do not create it.
+    ALTER TABLE products DROP CONSTRAINT IF EXISTS fk_products_currency;
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_schema = current_schema() AND table_name = 'products' AND column_name = 'currency') THEN
+        ALTER TABLE products ALTER COLUMN currency DROP NOT NULL;
+        ALTER TABLE products ALTER COLUMN currency DROP DEFAULT;
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_quote_versions_currency') THEN
         ALTER TABLE quote_versions ADD CONSTRAINT fk_quote_versions_currency FOREIGN KEY (currency) REFERENCES currencies(code);
