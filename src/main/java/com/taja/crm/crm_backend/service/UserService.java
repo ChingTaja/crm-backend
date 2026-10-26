@@ -49,6 +49,11 @@ public class UserService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到 User：" + id));
         access.manageTarget(actorId, user);
         String username = request.username().strip();
+        if (("taja".equals(user.getUsername()) && !username.equals(user.getUsername()))
+                || ("taja".equalsIgnoreCase(username) && !username.equals(user.getUsername())))
+            access.deny("最高管理員帳號名稱不可變更或使用。");
+        if (access.superAdmin(user) && request.roleId()!=null && !request.roleId().equals(user.getRole().getId()))
+            access.deny("最高管理員角色不可改派。");
         String email = request.email().strip().toLowerCase(Locale.ROOT);
         if (users.existsByUsernameAndIdNot(username, id)) {
             throw new QuoteException(HttpStatus.CONFLICT, "USERNAME_ALREADY_REGISTERED", "帳號已被註冊");
@@ -64,7 +69,7 @@ public class UserService {
             access.require(actorId, "users.assign-role");
             if (id.equals(actorId)) throw new ResponseStatusException(HttpStatus.CONFLICT, "不能改派自己的角色");
             access.requireAssignable(actorId, role);
-            if (user.isEnabled() && user.getRole() != null && "ADMIN".equals(user.getRole().getCode()) && users.countByRoleCodeAndEnabledTrue("ADMIN") <= 1)
+            if (user.isEnabled() && user.getRole() != null && "ADMIN".equals(user.getRole().getCode()) && users.countByRoleCodeAndEnabledTrue("ADMIN") <= 1 && !access.superAdmin(access.actor(actorId)))
                 throw new QuoteException(HttpStatus.CONFLICT, "LAST_ADMIN_PROTECTED", "不能移除最後一位管理員。");
             access.audit(actorId, "UserRoleAssigned", id, beforeRole, role.getId());
         }
@@ -81,13 +86,14 @@ public class UserService {
     public void deleteUsers(String actorId, String id) {
         access.lockAdministration();
         access.require(actorId, "users.delete");
+        if (!access.superAdmin(access.actor(actorId))) access.deny("僅最高管理員可刪除帳號。");
         if (id.equals(actorId)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "不能刪除目前登入的管理員");
         }
         User user = users.findForResetById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到 User：" + id));
         access.manageTarget(actorId, user);
-        if (user.isEnabled() && user.getRole() != null && "ADMIN".equals(user.getRole().getCode()) && users.countByRoleCodeAndEnabledTrue("ADMIN") <= 1)
+        if (user.isEnabled() && user.getRole() != null && "ADMIN".equals(user.getRole().getCode()) && users.countByRoleCodeAndEnabledTrue("ADMIN") <= 1 && !access.superAdmin(access.actor(actorId)))
             throw new QuoteException(HttpStatus.CONFLICT, "LAST_ADMIN_PROTECTED", "不能刪除最後一位管理員。");
         access.audit(actorId, "UserDeleted", id, user.getRole() == null ? null : user.getRole().getId(), null);
         tokens.deleteByUserId(id);
@@ -105,7 +111,7 @@ public class UserService {
         if (!enabled && id.equals(actorId))
             throw new QuoteException(HttpStatus.CONFLICT, "SELF_DISABLE_FORBIDDEN", "不能停用自己的帳號。");
         if (!enabled && user.isEnabled() && user.getRole() != null
-                && "ADMIN".equals(user.getRole().getCode()) && users.countByRoleCodeAndEnabledTrue("ADMIN") <= 1)
+                && "ADMIN".equals(user.getRole().getCode()) && users.countByRoleCodeAndEnabledTrue("ADMIN") <= 1 && !access.superAdmin(access.actor(actorId)))
             throw new QuoteException(HttpStatus.CONFLICT, "LAST_ADMIN_PROTECTED", "不能停用最後一位有效管理員。");
         access.manageTarget(actorId, user);
         if (user.isEnabled() != enabled) {

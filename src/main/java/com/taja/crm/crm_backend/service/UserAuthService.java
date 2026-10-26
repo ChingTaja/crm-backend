@@ -35,6 +35,7 @@ public class UserAuthService {
     public UserResponse register(RegisterRequest request, String actorId) {
         access.lockAdministration();
         String username = request.username().strip();
+        if ("taja".equalsIgnoreCase(username)) access.deny("此帳號名稱為系統保留，不能註冊。");
         String email = request.email().strip().toLowerCase(Locale.ROOT);
         if (request.password().getBytes(StandardCharsets.UTF_8).length > 72) {
             throw new IllegalArgumentException("密碼 UTF-8 長度不可超過 72 bytes");
@@ -83,6 +84,6 @@ public class UserAuthService {
         User user = access.actor(id);
         return new CurrentUserResponse(user.getId(), user.getUsername(), user.getEmail(),
             user.getRole() == null ? null : RoleResponse.fromEntity(user.getRole()),
-            access.effective(user.getRole()).stream().sorted().toList());
+            access.permissions(id).stream().sorted().toList());
     }
 }

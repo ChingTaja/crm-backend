@@ -42,6 +42,8 @@ public class RoleService {
  private Set<String> validate(String actor,List<String> codes) {
   Set<String> values=new TreeSet<>(codes);
   if(!PermissionCatalog.CODES.containsAll(values)) throw error(HttpStatus.BAD_REQUEST,"ROLE_UNKNOWN_PERMISSION","包含系統不支援的權限代碼。");
+  if(values.contains("users.delete"))
+   throw error(HttpStatus.BAD_REQUEST,"ROLE_SUPER_ADMIN_ONLY_PERMISSION","刪除帳號權限僅限最高管理員。");
   if(values.stream().anyMatch(c->c.startsWith("currencies.")))
    throw error(HttpStatus.BAD_REQUEST,"ROLE_ADMIN_ONLY_PERMISSION","幣別管理權限僅限內建管理員角色。");
   if(!access.permissions(actor).containsAll(values)) access.deny("不可授予自己沒有的權限。");

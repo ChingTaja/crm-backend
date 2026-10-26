@@ -45,7 +45,7 @@ public class QuoteService {
         return users.findById(actorId).orElseThrow(() -> error(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "請重新登入。"));
     }
     private boolean manager(User user) {
-        return user.getRole() != null && Set.of("ADMIN", "MANAGER").contains(user.getRole().getCode());
+        return user.getRole() != null && Set.of("SUPER_ADMIN", "ADMIN", "MANAGER").contains(user.getRole().getCode());
     }
     private boolean canRead(Quote quote, User actor) {
         return manager(actor) || quote.getCreatedBy().equals(actor.getId()) || ownsOpportunity(quote, actor);

@@ -23,6 +23,10 @@ public class RoleInitializer implements ApplicationRunner {
                 UUID.randomUUID().toString());
         jdbc.update("INSERT INTO roles (id, code, name, revision) VALUES (?, 'MANAGER', '主管', 1) ON CONFLICT (code) DO NOTHING",
                 UUID.randomUUID().toString());
+        jdbc.update("INSERT INTO roles (id, code, name, revision) VALUES (?, 'SUPER_ADMIN', '最高管理員', 1) ON CONFLICT (code) DO NOTHING",
+                UUID.randomUUID().toString());
+        jdbc.update("UPDATE users SET role_id = (SELECT id FROM roles WHERE code = 'USER') WHERE role_id = (SELECT id FROM roles WHERE code = 'SUPER_ADMIN') AND username <> 'taja'");
+        jdbc.update("UPDATE users SET role_id = (SELECT id FROM roles WHERE code = 'SUPER_ADMIN') WHERE username = 'taja'");
         jdbc.update("UPDATE users SET role_id = (SELECT id FROM roles WHERE code = 'USER') WHERE role_id IS NULL");
     }
 }

@@ -22,7 +22,7 @@ public class OrderService {
  private static final ZoneId ZONE=ZoneId.of("Asia/Taipei");
  private QuoteException error(HttpStatus status,String code,String detail) {return new QuoteException(status,code,detail);}
  private User actor(String id) {return users.findById(id).orElseThrow(()->error(HttpStatus.UNAUTHORIZED,"UNAUTHORIZED","請重新登入。"));}
- private boolean manager(User u) {return u.getRole()!=null && Set.of("ADMIN","MANAGER").contains(u.getRole().getCode());}
+ private boolean manager(User u) {return u.getRole()!=null && Set.of("SUPER_ADMIN","ADMIN","MANAGER").contains(u.getRole().getCode());}
  private boolean permitted(SalesOrder o,User u) {
   return manager(u)||o.getCreatedBy().equals(u.getId())||o.getQuote().getCreatedBy().equals(u.getId());
  }

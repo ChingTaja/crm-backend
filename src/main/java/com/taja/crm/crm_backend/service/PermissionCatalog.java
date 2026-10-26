@@ -3,7 +3,7 @@ import com.taja.crm.crm_backend.dto.role.PermissionResponse;
 import java.util.*;
 public final class PermissionCatalog {
  private PermissionCatalog() {}
- public static final Set<String> SYSTEM_ROLES=Set.of("ADMIN","MANAGER","USER");
+ public static final Set<String> SYSTEM_ROLES=Set.of("SUPER_ADMIN","ADMIN","MANAGER","USER");
  public static final List<PermissionResponse> ALL;
  public static final Set<String> CODES;
  static {
